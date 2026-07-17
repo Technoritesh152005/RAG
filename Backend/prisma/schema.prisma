@@ -1,0 +1,68 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+model Workspace{
+  id String @id @default(uuid())
+  name String
+  description String
+  userId String
+  sources Source[]
+  messages Message[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  
+}
+
+// url source schema
+model Source {
+  id String @id
+  url String
+  workspaceId String
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  status SourceStatus @default(PENDING)
+  pageCount Int?
+  chunkCount Int?
+  error String ?
+  createdAt DateTime @default(now())
+
+// this tells each url will have only one workspace 
+  @@unique([url, workspaceId])
+
+}
+
+model Message {
+  id String @id @default(uuid())
+  workspaceId String 
+  workspace  Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  role Role
+  content String
+  sources Json?
+  createdAt DateTime @default(now())
+}
+
+enum SourceStatus {
+  PENDING
+  SCRAPING
+  CHUNKING
+  EMBEDDING
+  DONE
+  FAILED
+}
+
+enum Role{
+   USER
+  ASSISTANT
+}

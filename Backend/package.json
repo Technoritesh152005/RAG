@@ -1,0 +1,15 @@
+{
+  "dependencies": {
+    "@fastify/cors": "^11.3.0",
+    "@fastify/jwt": "^10.2.0",
+    "@prisma/client": "^6.19.3",
+    "bullmq": "^5.80.2",
+    "fastify": "^5.10.0",
+    "ioredis": "^5.11.1",
+    "prisma": "^6.19.3",
+    "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "dotenv": "^17.4.2"
+  }
+}
