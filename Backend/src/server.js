@@ -51,6 +51,35 @@ io.on('connection',(socket)=>{
   })
 })
 
+// seperate redis client for subscriber
+const subRedis = new Redis(process.env.REDIS_URL)
+
+// whenever some msg comes in source:status channle notify
+subRedis.subscribe('source:status', (err)=>{
+  if (err) console.error('Redis subscribe error:', err)
+    else console.log('Subscribed to source:status channel')
+})
+
+// when workerpublish emit status update it
+// it returns message in string like workspaceid, chunk and all data from worker
+subRedis.on('message', (channel,message)=>{
+
+  if(channel==='source:status'){
+    const data = JSON.parse(message)
+    console.log(data)
+
+    // emit to clients in workspace room via socket
+    // only those in room of socket will receive this messgae and load in frontend
+    io.to(data.workspaceId).emit('source:status', {
+      sourceId: data.sourceId,
+      status: data.status,
+      pageCount: data.pageCount,
+      chunkCount: data.chunkCount,
+      error: data.error
+    })
+  }
+})
+
 // start server
 const PORT = process.env.PORT || 4000
 
