@@ -66,3 +66,20 @@ enum Role{
    USER
   ASSISTANT
 }
+model Chunk {
+
+  id String @id
+  sourceId String
+  workspaceId String
+  pageUrl String
+  pageTitle String
+  sectionHeading String
+  parentText String @db.Text
+  childText String @db.Text
+  chunkIndex Int 
+  parentIndex Int
+  createdAt DateTime @default(now())
+
+  @@index([workspaceId])
+  @@index([sourceId])
+}
