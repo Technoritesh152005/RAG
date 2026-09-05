@@ -33,7 +33,7 @@ export async function chunkPage({ content, pageUrl, pageTitle, sourceId, workspa
         for (let pIndex = 0; pIndex < parentChunks.length; pIndex++) {
 
             const parentChunkText = parentChunks[pIndex]
-            if (!parentText.trim()) continue
+            if (!parentChunkText.trim()) continue
 
             // generate stable parent id and hash it cause if docs dont change no need to re cawl. this avoids duplication of data
             const parentId = generateId(`${sourceId}-${pageUrl}-parent-${pIndex}`)

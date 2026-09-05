@@ -4,6 +4,7 @@ export async function authenticateMiddleware(request , reply){
 
     try{
 
+        //we extract the authorization header from the request to verify the token
         const authReqHeader =  request.headersauthorization
         console.log(request.headers)
         console.log(request.headers.authorization)

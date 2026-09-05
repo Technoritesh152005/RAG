@@ -10,7 +10,7 @@ export async function crawlSource({ url, sourceId, workspaceId, onPageCrawled, o
     const crawledUrls = new Set() // Track visited URLs
 
     const rootUrl = new URL(url)
-    const path = rootUrl.pathname
+    const basePath = rootUrl.pathname
     let pageCount = 0
 
     // CheerioCrawler setup
