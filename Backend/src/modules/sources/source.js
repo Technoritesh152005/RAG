@@ -17,7 +17,7 @@ export async function addSource({url , workspaceId , userId}){
         data:{
             url:url,
             workspaceId,
-            status:'PENDING'
+            status:'PENDING'    
         }
     })
 
@@ -40,7 +40,7 @@ export async function getSource(workspaceId , userId){
             userId
         }
     })
-    if(!workspace) throw new Error('Worspace not found')
+    if(!workspace) throw new Error('Workspace not found')
 
     // find the source all
     return  prisma.source.findMany({
@@ -61,7 +61,7 @@ export async function deleteSource(sourceId , userId){
         include:{workspace:true}
     })
 
-    if(!source) throw new Error('Sourc not found')
+    if(!source) throw new Error('Source not found')
         return prisma.source.delete({
     where:{
         id:sourceId

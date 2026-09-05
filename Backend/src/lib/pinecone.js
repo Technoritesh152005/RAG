@@ -1,9 +1,11 @@
 import {Pinecone} from 'pinecone-database/pinecone'
 
+//creating instance of pinecone client
 const Pinecone = new Pinecone({
     apiKey : process.env.PINECONE_API_KEY
 })
 
+//function to get the index of pinecone
 export  const getPineconeIndex =()=>{
     return Pinecone.index(process.env.PINECONE_INDEX)
 }

@@ -38,7 +38,7 @@ export async function embeddingText(text) {
 export async function embeddingDocument(text) {
 
     try {
-        const model = genAI.getGenerativeModel({ model: EMBEDDING_MODEL })
+        const model = genAi.getGenerativeModel({ model: EMBEDDING_MODEL })
 
         const result = await model.embedContent({
             content: {
@@ -56,6 +56,7 @@ export async function embeddingDocument(text) {
 }
 
 async function embeddingBatches(text) {
+   
     const allEmbeddings = [];
     const batches = Math.ceil(text.length / BATCH_SIZE)
 

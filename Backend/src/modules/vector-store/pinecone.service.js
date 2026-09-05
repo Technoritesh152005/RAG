@@ -14,7 +14,7 @@ export async function upsertChunks(chunks, Embeddings, workspaceId) {
     const namespace = index.namespace(workspaceId)
 
     // build pinecone vector objects
-    // this creates an array where inside array there r multple bjects of vectors with their corresponding chunks metadata
+    // this creates an array where inside array there r multple objects of vectors with their corresponding chunks metadata
     const vectors = chunks.map((chunk, i) => {
         id: chunk.id
         values: Embeddings[i];
@@ -43,6 +43,7 @@ export async function upsertChunks(chunks, Embeddings, workspaceId) {
     })
 
     /* Put all the vectors in a batch of size UPSERT_SIZZE_BATCH */
+    // Why does Pinecone need the chunk if it already has the vector?-> cause the vector is just a representation of the chunk, but it doesn't contain the actual content. The chunk is needed for context and to retrieve the original content when needed.
     for (let i = 0; i < vectors.length; i += UPSERT_INSERT_BATCH) {
         const batch = vectors.slice(i, i + UPSERT_INSERT_BATCH)
         const batchNum = Math.floor(i / UPSERT_INSERT_BATCH) + 1
@@ -80,7 +81,7 @@ export async function vectorSearch(questionEmbedding, workspaceId, topK = 10) {
     results.matches.map(match => ({
 
         id: match.id,
-        score: match.score,
+        score: match.score, 
         pageUrl: match.metadata.pageUrl,
         pageTitle: match.metadata.pageTitle,
         sectionHeading: match.metadata.sectionHeading,

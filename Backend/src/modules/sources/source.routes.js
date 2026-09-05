@@ -14,6 +14,7 @@ const addSourceSchema = z.object({
 
 export async function registerSourceRoutes(fastify){
 
+    //adding authentication middleware to all the routes in this file of our fastify backend server
     fastify.addHook('preHandler', authenticate)
 
     // gets all the source from this workspace
@@ -43,7 +44,7 @@ export async function registerSourceRoutes(fastify){
             })
             return reply.code(201).send({source})
         }catch(error){
-            // means someone tried to paste same spurce url
+            // means someone tried to paste same source url
             if(error.code ==='P2002'){
                 return reply.code(409).send({error:'Url already exist in this worspace. Try other url or create other workspace for this source url'})
             }
@@ -61,9 +62,10 @@ export async function registerSourceRoutes(fastify){
         }
     })
 
+    //reindexing/recrawling once again the source url to get the latest content and update the chunks in db
     fastify.post('/:workspaceId/sources/:sourceId/reindex', async (request, reply) => {
         try {
-          const source = await reindexSource(
+          const source = await reIndexSource(
             request.params.sourceId,
             request.user.id
           )
