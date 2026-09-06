@@ -6,7 +6,7 @@ import {
     addSource
 } from '../sources/source.js'
 import {z} from 'zod'
-import {authenticate} from '../auth/auth_middleware.js'
+import {authenticateMiddleware} from '../auth/auth_middleware.js'
 
 const addSourceSchema = z.object({
     url: z.string().url('Must be a valid URL')
@@ -15,7 +15,7 @@ const addSourceSchema = z.object({
 export async function registerSourceRoutes(fastify){
 
     //adding authentication middleware to all the routes in this file of our fastify backend server
-    fastify.addHook('preHandler', authenticate)
+    fastify.addHook('preHandler', authenticateMiddleware)
 
     // gets all the source from this workspace
     fastify.get('/:workspaceId/sources' , async(request,reply)=>{

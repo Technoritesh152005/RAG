@@ -1,6 +1,6 @@
 import prisma from "../../lib/prisma"; 
 
-export  function creatWorkspace({name,userId , description}){
+export  async function createWorkspace({name,userId , description}){
 
     return prisma.workspace.create({
         data: {name,description,userId}
@@ -44,8 +44,8 @@ export async function deleteWorkspace(id, userId){
     })
 }
 
-export async function updateWorkspace (userId , id , data){
-    const work = prisma.workspace.findFirst({
+export async function updateWorkspace (userId,id, data){
+    const work = await prisma.workspace.findFirst({
         where:{userId, id}
     })
     if(!work) throw new Error("No Workspace found")

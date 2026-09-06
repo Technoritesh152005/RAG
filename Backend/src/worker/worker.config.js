@@ -2,7 +2,7 @@ import {Worker} from 'bullmq'
 import redis from '../lib/redis.js'
 
 const worker = new Worker(
-    'ingestion',
+    'ingestion-queue',
     async(job)=>{
         console.log('Processing Job')
 

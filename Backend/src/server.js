@@ -1,6 +1,7 @@
-import Fastify, { fastify } from 'fastify'
+import  { fastify } from 'fastify'
 import cors from '@fastify/cors'
 import {Server} from 'socket.io'
+import Redis from 'ioredis'
 import createServer from 'http'
 import {registerWorkspaceRoute} from './modules/workspace/workspace_routes.js'
 import dotenv from 'dotenv'
@@ -9,7 +10,7 @@ import {registerSourceRoutes} from './modules/sources/source.routes.js'
 
 dotenv.config()
 
-const fastify = Fastify({ logger: true })
+const fastify = fastify({ logger: true })
 
 await fastify.register(cors,{
     origin: process.env.FRONTEND_URL || 'http://localhost:3000',

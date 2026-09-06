@@ -1,4 +1,4 @@
-import { getIndex } from '../../lib/pinecone.js'
+import { getPineconeIndex } from '../../lib/pinecone.js'
 
 const UPSERT_INSERT_BATCH = 100  //max vectors can go in batch in pinecone at at time
 
@@ -10,7 +10,7 @@ const UPSERT_INSERT_BATCH = 100  //max vectors can go in batch in pinecone at at
 // remember the chunks and their embedding are mapped correctly in sequence bcz all embdding r created based on chunks sequence
 export async function upsertChunks(chunks, Embeddings, workspaceId) {
 
-    const index = getIndex()
+    const index = getPineconeIndex()
     const namespace = index.namespace(workspaceId)
 
     // build pinecone vector objects
@@ -64,7 +64,7 @@ export async function upsertChunks(chunks, Embeddings, workspaceId) {
 export async function vectorSearch(questionEmbedding, workspaceId, topK = 10) {
 
     // first get the namespace from where u will get the content vectors
-    const index = getIndex()
+    const index = getPineconeIndex()
     const namespace = index.namespace(workspaceId)
 
     const results = await namespace.query({
@@ -92,7 +92,7 @@ export async function vectorSearch(questionEmbedding, workspaceId, topK = 10) {
 
 /* Whenever user tries to re-indexing a source try to delete all vectors for that source and for that particular namespace */
 export async function deleteVectors(sourceId, workspaceId) {
-    const index = getIndex()
+    const index = getPineconeIndex()
     const namespace = index.namespace(workspaceId)
 
     await namespace.deleteMany({
@@ -105,7 +105,7 @@ export async function deleteVectors(sourceId, workspaceId) {
 /* When workspace is deleted , delete all the vectors for entire naespace */
 export async function deleteWorkspaceVectors(workspaceId) {
     try {
-        const index = getIndex()
+        const index = getPineconeIndex()
         const namespace = index.namespace(workspaceId)
 
         await namespace.deleteAll()

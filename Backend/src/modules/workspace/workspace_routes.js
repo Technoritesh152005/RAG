@@ -16,7 +16,7 @@ export async function registerWorkspaceRoute(fastify) {
     // get all workspace for the user
     fastify.get('/', async (request, reply) => {
         try {
-            const workspace = getWorkspace(request.user.id)
+            const workspace = await getWorkspace(request.user.id)
             if (!workspace) {
                 return reply.send({ error: 'Not able to fetch user workspace' })
             }
@@ -29,7 +29,7 @@ export async function registerWorkspaceRoute(fastify) {
     // get single workspace
     fastify.get('/:id', async (request, reply) => {
         try {
-            const workspace = getWorkspace(request.user.id, request.params.id)
+            const workspace = await getWorkspaceById(request.user.id, request.params.id)
             if (!workspace) {
                 return reply.send({ error: 'Not able to fetch user workspace' })
             }
@@ -43,7 +43,7 @@ export async function registerWorkspaceRoute(fastify) {
     fastify.post('/', async (request, reply) => {
 
         try {
-            const data = await createSchema(request.body)
+            const data = await createSchema.parse(request.body)
             const workspace = await createWorkspace(
                 {
                     ...data,
