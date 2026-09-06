@@ -5,7 +5,7 @@ export async function authenticateMiddleware(request , reply){
     try{
 
         //we extract the authorization header from the request to verify the token
-        const authReqHeader =  request.headersauthorization
+        const authReqHeader =  request.headers.authorization
         console.log(request.headers)
         console.log(request.headers.authorization)
         if(!authReqHeader || !authReqHeader.startsWith('Bearer')){
@@ -13,7 +13,7 @@ export async function authenticateMiddleware(request , reply){
         }
 
         const token = authReqHeader.split(' ')[1]
-        const user = verifyToken(token)
+        const user = await verifyToken(token)
 
         request.user = user
     }catch(error){

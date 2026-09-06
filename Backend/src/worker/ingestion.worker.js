@@ -3,13 +3,14 @@ import { Worker } from 'bullmq'
 import redis from '../lib/redis.js'
 import { updateSourceStatus } from '../modules/sources/source.js'
 import { crawlSource } from '../modules/crawler/crawler.service.js'
+import prisma from '../lib/prisma.js'
 
 dotenv.config();
 
 console.log('Started Worker Crawling Processing Job')
 
 const worker = new Worker(
-    'ingestion',
+    'ingestion-queue',
     async (job) => {
         const { sourceId, workspaceId, url } = job.data
         console.log(`Starting ingestion for source: ${sourceId}, url: ${url}`)
@@ -18,7 +19,7 @@ const worker = new Worker(
 
             // mark as scraping
             await updateSourceStatus(sourceId, 'SCRAPING')
-            await emitStatusUpdate(workspaceId, sourceId, 'SCRAPING')
+            await emitStatusUpdates(workspaceId, sourceId, 'SCRAPING')
            
 
             const { allChunks, pageCount, chunkCount } = await crawlSource({
@@ -44,14 +45,14 @@ const worker = new Worker(
 
             // now till here means u have crawled and got the chunks also
             await updateSourceStatus(sourceId, 'CHUNKING')
-            await emitStatusUpdate(workspaceId, sourceId, 'CHUNKING')
+            await emitStatusUpdates(workspaceId, sourceId, 'CHUNKING')
 
         } catch (error) {
             console.error(`Ingestion failed for source ${sourceId}:`, err.message)
 
             // mark as failed with error message
             await updateSourceStatus(sourceId, 'FAILED', {
-                error: err.message
+                error: error.message
             })
         }
     },
