@@ -51,7 +51,7 @@ export async function upsertChunks(chunks, Embeddings, workspaceId) {
         const totalBatches = Math.ceil(vectors.length / UPSERT_INSERT_BATCH)
 
         /* This inserts the given vector in pinecone and also on that particular namespace */
-        await namespace.upsert(batch)
+        await namespace.upsert(totalBatches, batch)
         console.log(`Pinecone upsert: batch ${batchNum}/${totalBatches}`)
     }
 

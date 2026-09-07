@@ -27,15 +27,15 @@ export async function registerSourceRoutes(fastify){
             )
             return reply.code(200).send({source})
         }catch(error){
-            return reply.status(404).send({ error: err.message })
+            return reply.status(404).send({ error: error.message })
         }
     } )
 
     // post source in workspace
     fastify.post('/:workspaceId/sources' , async(request, reply)=>{
         try{
-            console.log(console.body)
-            const {url} = addSourceSchema(request.body)
+            console.log('Putting source in workspace: this is the request Body:='+request.body)
+            const {url} = addSourceSchema.parse(request.body)
 
             const source = await addSource({
                 url:url,
