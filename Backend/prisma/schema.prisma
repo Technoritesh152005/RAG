@@ -28,7 +28,7 @@ model Workspace{
 
 // url source schema
 model Source {
-  id String @id
+  id String @id @default(uuid())
   url String
   workspaceId String
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

@@ -2,7 +2,7 @@ import { GoogleGenerativeAi } from '@google/generative-ai'
 
 const genAi = new GoogleGenerativeAi(process.env.GEMINI_API_KEY)
 
-const EMBEDDING_MODEL = 'text-embedding-001'
+const EMBEDDING_MODEL = 'text-embedding-004'
 // we use 768 dimension model for embeeding.. no more diff compare to 1576 something just small pattern was also noted or discovered in 1576 dimension embedding model
 
 // no of text to give during embedding
@@ -55,7 +55,7 @@ export async function embeddingDocument(text) {
     }
 }
 
-async function embeddingBatches(text) {
+export async function embeddingBatches(text) {
    
     const allEmbeddings = [];
     const batches = Math.ceil(text.length / BATCH_SIZE)
@@ -78,7 +78,7 @@ async function embeddingBatches(text) {
         console.log(allEmbeddings)
 
         // delay between batches — respect free tier rate limits
-        if (i + BATCH_SIZE < texts.length) {
+        if (i + BATCH_SIZE < text.length) {
             await sleep(500)  // 500ms between batches
         }
 
