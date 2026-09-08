@@ -12,7 +12,7 @@ export async function chatRoutes(fastify){
             const messages = await getAllMessages(workspaceId,request.user.id)
             return reply.send({msg:messages})
         }catch(error){
-            return reply.code(404).send({error.message})
+            return reply.code(404).send({msg:error.message})
         }
     })
 

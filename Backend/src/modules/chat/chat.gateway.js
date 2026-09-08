@@ -3,6 +3,9 @@ import {
   getAllMessages,
   deleteWorkspaceMessage,
 } from "./chat.service.js";
+import{
+  checkAndGenerateFAQ
+}from './faq.service.js'
 import { runRagPipeline } from "./rag.service.js";
 
 export async function registerChatGateway(socketInstance) {
@@ -21,7 +24,25 @@ export async function registerChatGateway(socketInstance) {
     });
 
     //inside that connection only all operation will be perform ->means connection active(socket) then only perform opn
+    //allow rate limit for chat messages
+    const messageTimestamps = new Map();
+
     socket.on("chat:message", async ({ question, workspaceId }) => {
+      const userId = socket.user.id;
+      const now = date.now();
+      const userTimestamps = messageTimestamps.get(userId) || [];
+
+      //keep only recent timestamp
+      const recentTimestamps = userTimestamps.filter((t) => now - t < 60000);
+      if (recentTimestamps >= 20) {
+        socket.emit("chat:error", {
+          messages: "Too many messages. Please wait a moment and try again",
+        });
+        return;
+      }
+
+      recentTimestamps.push(now)
+       messageTimestamps.set(userId, recentTimestamps)
       if (!workspaceId || !question || !question.trim()) {
         socket.emit("chat:error", { message: "Invalid question or Workspace" });
       }
@@ -101,6 +122,15 @@ export async function registerChatGateway(socketInstance) {
               content: completeAnswer,
               sources: completeAnswer,
             });
+
+            //after rag completion check or generate faqs
+            await checkAndGenerateFAQ(workspaceId).catch(()=>{})
+
+            socket.emit('chat:done', {
+              answer:completeAnswer,
+              citations:finalCitations
+            })
+
 
             socket.emit("chat:done", {
               answer: completeAnswer,

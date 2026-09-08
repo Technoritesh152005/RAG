@@ -1,4 +1,5 @@
 import prisma from "../../lib/prisma"; 
+import { cleanupWorkspace } from './cleanup.service.js'
 
 export  async function createWorkspace({name,userId , description}){
 
@@ -32,16 +33,17 @@ export function getWorkspaceById (id , userId){
         return workspace
 }
 
-export async function deleteWorkspace(id, userId){
-    const work = await prisma.workspace.findFirst({
-        where:{id,userId}
-    })
+export async function deleteWorkspace(id, userId) {
+  const workspace = await prisma.workspace.findFirst({
+    where: { id, userId }
+  })
+  if (!workspace) throw new Error('Workspace not found')
 
-    if(!work) throw new Error('Workspace not found to delete')
+  // cleanup external data first
+  await cleanupWorkspace(id)
 
-    return prisma.workspace.delete({
-        where:{id}
-    })
+  // then delete from DB — cascade handles sources/messages
+  return prisma.workspace.delete({ where: { id } })
 }
 
 export async function updateWorkspace (userId,id, data){
@@ -55,4 +57,66 @@ export async function updateWorkspace (userId,id, data){
             data
         })
     
+}
+
+export async function workspaceStats(workspaceId, userId){
+    const workspace = await prisma.workspace.findUnique({
+        where:{
+            id:workspaceId,
+            userId
+        }
+    })
+
+    if(!workspace){throw new Error('No workspace found to show its stats')}
+
+    const {sources, chunkCount, messageCount, faqCount} = await promise.all([
+        prisma.source.findMany({
+            where:{
+                workspaceId
+            },
+            select:{
+                id:true,
+                status:true,
+                pageCount:true,
+                chunkCount:true,
+                url:true
+            }
+        }),
+        prisma.chunk.count({
+            where:{
+                workspaceId
+            }
+        }),
+        prisma.message.count({
+            where:{
+                workspaceId
+            }
+        }),
+        prisma.FAQ.count({
+            where:{
+                workspaceId
+            }
+        })
+    ])
+
+     // calculate totals
+  const totalPages = sources.reduce((sum, s) => sum + (s.pageCount || 0), 0)
+  const doneSources = sources.filter(s => s.status === 'DONE').length
+  const failedSources = sources.filter(s => s.status === 'FAILED').length
+  const pendingSources = sources.filter(s =>
+    ['PENDING', 'SCRAPING', 'CHUNKING', 'EMBEDDING'].includes(s.status)
+  ).length
+
+  return {
+    workspaceId,
+    sources: {
+      total: sources.length,
+      done: doneSources,
+      failed: failedSources,
+      pending: pendingSources
+    },
+    totalPages,
+    totalChunks: chunkCount,
+    totalMessages: messageCount,
+    totalFAQs: faqCount
 }

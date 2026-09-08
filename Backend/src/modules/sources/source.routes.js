@@ -4,7 +4,7 @@ import {
     deleteSource,
     getSource,
     addSource
-} from '../sources/source.js'
+} from './source.service.js'
 import {z} from 'zod'
 import {authenticateMiddleware} from '../auth/auth_middleware.js'
 

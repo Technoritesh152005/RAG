@@ -83,3 +83,15 @@ model Chunk {
   @@index([workspaceId])
   @@index([sourceId])
 }
+
+
+model FAQ {
+  id String @id @default(uuid())
+  workspaceId String
+  question String
+  answer String @db.text
+  createdAt DateTime @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId])
+}
