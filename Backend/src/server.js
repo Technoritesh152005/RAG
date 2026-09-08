@@ -9,10 +9,39 @@ import { verifyToken } from "./modules/auth/auth_service.js";
 import { registerSourceRoutes } from "./modules/sources/source.routes.js";
 import { registerChatGateway } from "./modules/chat/chat.gateway.js";
 import { chatRoutes } from "./modules/chat/chat.routes.js";
+import rateLimit from "@fastify/rate-limit";
+import { faqRoutes } from "./modules/chat/faq.routes.js";
+import prisma from "./lib/prisma.js";
+import { getIndex } from "./lib/pinecone.js";
 
 dotenv.config();
 
 const fastify = fastify({ logger: true });
+
+fastify.register(faqRoutes, { prefix: "/api/workspaces" });
+
+await fastify.register(rateLimit, {
+  global: true,
+  max: 100,
+  timeWindow: "5 minute",
+
+  errorResponseBuilder: (request, context) => ({
+    error: "Too many request",
+    message: `rate Limit excedeed. Try again in ${time} `,
+    statusCode: 429,
+  }),
+});
+
+//strict rate limit for workspace based routes
+await fastify.register(rateLimit, {
+  prefix: "/api/workspace",
+  config: {
+    rateLimit: {
+      max: 10,
+      timeWindow: "1 hour",
+    },
+  },
+});
 
 await fastify.register(cors, {
   origin: process.env.FRONTEND_URL || "http://localhost:3000",
@@ -21,7 +50,7 @@ await fastify.register(cors, {
 
 fastify.register(registerWorkspaceRoute, { prefix: "/api/workspace" });
 fastify.register(registerSourceRoutes, { prefix: "/api/workspaces" });
-fastify.register(chatRoutes, {prefix:'/api/workspaces'})
+fastify.register(chatRoutes, { prefix: "/api/workspaces" });
 
 // create http server for socket.io
 const httpServer = createServer(fastify.server);
@@ -74,6 +103,45 @@ subRedis.on("message", (channel, message) => {
       error: data.error,
     });
   }
+});
+
+fastify.get("/health", async (request, reply) => {
+  const health = {
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    services: {},
+  };
+
+  // check Postgres
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    health.services.postgres = "ok";
+  } catch {
+    health.services.postgres = "error";
+    health.status = "degraded";
+  }
+
+  // check Redis
+  try {
+    await redis.ping();
+    health.services.redis = "ok";
+  } catch {
+    health.services.redis = "error";
+    health.status = "degraded";
+  }
+
+  // check Pinecone
+  try {
+    const index = getIndex();
+    await index.describeIndexStats();
+    health.services.pinecone = "ok";
+  } catch {
+    health.services.pinecone = "error";
+    health.status = "degraded";
+  }
+
+  const statusCode = health.status === "ok" ? 200 : 503;
+  return reply.status(statusCode).send(health);
 });
 
 // start server
