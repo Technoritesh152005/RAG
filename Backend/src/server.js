@@ -13,6 +13,7 @@ import rateLimit from "@fastify/rate-limit";
 import { faqRoutes } from "./modules/chat/faq.routes.js";
 import prisma from "./lib/prisma.js";
 import { getIndex } from "./lib/pinecone.js";
+import {registerUsageRoutes} from './modules/analytics/usage.routes.js'
 
 dotenv.config();
 
@@ -51,6 +52,7 @@ await fastify.register(cors, {
 fastify.register(registerWorkspaceRoute, { prefix: "/api/workspace" });
 fastify.register(registerSourceRoutes, { prefix: "/api/workspaces" });
 fastify.register(chatRoutes, { prefix: "/api/workspaces" });
+fastify.register(registerUsageRoutes, { prefix: "/api/workspaces" });
 
 // create http server for socket.io
 const httpServer = createServer(fastify.server);

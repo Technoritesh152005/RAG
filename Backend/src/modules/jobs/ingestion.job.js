@@ -2,7 +2,8 @@ import { embeddingBatches } from "../Embeeding/embeeding.service.config.js";
 import { upsertChunks, deleteVectors } from "../vector-store/pinecone.service.js";
 import { deleteSourceChunks } from "../vector-store/fullTextSearch.service.js";
 import { storeChunksForFullTextSearch } from "../vector-store/fullTextSearch.service.js";
-
+import {deduplicateChunks} from '../Embeeding/hashChunk.service.js'
+import {logUsage} from '../analytics/usage.service.js'
 const BATCH_SIZE = 100;
 export async function embedAndStore(chunks, sourceId, workspaceId, onProgress) {
   if (!chunks || chunks.length === 0) {
@@ -17,7 +18,14 @@ export async function embedAndStore(chunks, sourceId, workspaceId, onProgress) {
     deleteSourceChunks(sourceId)
   ]);
 
+  const {uniqueChunks , duplicateMap} = await deduplicateChunks(chunks,workspaceId)
+   console.log(
+    `Embedding ${uniqueChunks.length}/${chunks.length} chunks ` +
+    `(saved ${duplicateMap.size} redundant embedding calls)`
+  )
+
   let totalProcessed = 0;
+  let totalEmbeddingTokensEstimate = 0;
   for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
     const batch = chunks.slice(i, i + BATCH_SIZE);
 
@@ -25,6 +33,11 @@ export async function embedAndStore(chunks, sourceId, workspaceId, onProgress) {
     const texts = batch.map((chunk) => chunk.childText);
 
     const embeddings = await embeddingBatches(texts);
+
+    // rough token estimate — 1 token ≈ 4 characters
+    totalEmbeddingTokensEstimate += texts.reduce(
+      (sum, t) => sum + Math.ceil(t.length / 4), 0
+    )
 
     await Promise.all([
       upsertChunks(batch, embeddings, workspaceId),
@@ -42,6 +55,24 @@ export async function embedAndStore(chunks, sourceId, workspaceId, onProgress) {
       });
     }
   }
+
+  //cost tracking
+  await logUsage({
+    workspaceId,
+    tupe:'INGESTION',
+    embeddingTokens: totalEmbeddingTokensEstimate,
+    llmInputTokens:0,
+    llmOutputTokens:0,
+    latencyMs: null,
+    metadat:{
+      sourceId,
+      totalChunks:chunks.length,
+      uniqueChunks:uniqueChunks.length,
+      duplicateSkipped:duplicateMap.size
+    }
+
+  })
+  
 
   console.log(`Embedding complete. All ${chunks.length} chunks stored.`);
   return { chunksCount: chunks.length };

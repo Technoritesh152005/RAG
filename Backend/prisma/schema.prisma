@@ -95,3 +95,29 @@ model FAQ {
 
   @@index([workspaceId])
 }
+
+model ChunkHash{
+  id String @id @default(uuid())
+  contentHash String
+  workspaceId String
+  chunkId String
+  createdAt DateTime @default(now())
+
+  @@unique([contentHash, workspaceId])
+  @@index([workspaceId])
+}
+
+model usageLog{
+  id String @id @default(uuid())
+  workspaceId String
+  type String
+  embeddingTokens Int @default(0)
+  llmInputTokens   Int      @default(0)
+  llmOutputTokens  Int      @default(0)
+  latencyMs        Int?
+  metadata         Json?
+  createdAt        DateTime @default(now())
+
+  @@index([workspaceId])
+  @@index([type])
+}

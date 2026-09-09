@@ -1,6 +1,8 @@
 import {deleteVectors,deleteWorkspaceVectors} from '../vector-store/pinecone.service.js'
 import {deleteWorkspaceChunks, deleteSourceChunks} from '../vector-store/fullTextSearch.service.js'
 import {deleteFAQs} from '../chat/faq.service.js'
+import {deleteWorkspaceHashes} from '../Embeeding/hashChunk.service.js'
+
 import prisma from '../../lib/prisma.js'
 
 //when deleted workspace so delete all vectors and chunks. this basically links or bring each service together
@@ -11,7 +13,8 @@ export async function cleanUpWorkspace(workspaceId){
     await Promise.all([
         deleteWorkspaceChunks(workspaceId),
         deleteWorkspaceVectors(workspaceId),
-        deleteFAQs(workspaceId)
+        deleteFAQs(workspaceId),
+        deleteWorkspaceHashes(workspaceId)
     ])
 
      console.log(`Workspace ${workspaceId} fully cleaned up`)

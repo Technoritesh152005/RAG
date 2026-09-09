@@ -1,5 +1,6 @@
 import { hybridSearch } from "../vector-store/pinecone.service.js";
 import { generateTextFAQs } from "../chat/groq.service.js";
+import {logUsage,estimateTokens} from '../analytics/usage.service.js'
 
 export async function runRAGPipeline({
   question,
@@ -9,6 +10,8 @@ export async function runRAGPipeline({
   onError,
   onMetadata,
 }) {
+
+  const startTime = Date.now();
   console.log("Rag Pipeline started for :"`${question}`);
 
   /* Step 1 : Hybrid search=> search through both vector and keyword postgres based search */
@@ -31,6 +34,16 @@ export async function runRAGPipeline({
 
     onToken(fallbackAnswer);
     onDone(fallbackAnswer);
+ // log even fallback responses — still a real request
+    await logUsage({
+      workspaceId,
+      type: 'CHAT',
+      embeddingTokens: estimateTokens(question),
+      llmInputTokens: 0,
+      llmOutputTokens: estimateTokens(fallbackAnswer),
+      latencyMs: Date.now() - startTime,
+      metadata: { confident: false, question }
+    })
   }
 
   /* Step 3: CONTRADICTION DETECTION */
@@ -60,13 +73,29 @@ export async function runRAGPipeline({
   });
 
   /* Step 6 : get the response(STREAM ANSWER) */
-  console.log("Streaming answer");
+  console.log("Streaming answer from GROQ");
 
   await streamAnswer({
     systemPrompt,
     userPrompt,
     onToken,
-    onDone,
+    onDone:async(complete)=>{
+
+       await logUsage({
+        workspaceId,
+        type: 'CHAT',
+        embeddingTokens: estimateTokens(question),
+        llmInputTokens: estimateTokens(systemPrompt + userPrompt),
+        llmOutputTokens: estimateTokens(completeAnswer),
+        latencyMs: Date.now() - startTime,
+        metadata: {
+          confident: true,
+          hasContradiction: !!contradiction,
+          chunksUsed: results.length
+        }
+      })
+      onDone(completeAnswer)
+    },
     onError,
   });
 }
@@ -297,35 +326,27 @@ verify which version/context applies.
   }
 
   //if not contradiction no need for contradiction prompt
-  const systemPrompt = `
-    You are a precise documentation assistant.
-
-Your job is to answer questions using ONLY the provided
-documentation context.
+ const systemPrompt = `You are a precise documentation assistant.
+Your job is to answer questions using ONLY the provided documentation context.
 
 Rules you must follow:
-
-1. Answer ONLY using the provided context.
-   Never use outside knowledge.
-
-2. If the answer is not in the context, say exactly:
-   "I couldn't find this in the indexed documentation."
-
-3. Always cite which source (Source 1, Source 2, etc.)
-   your answer comes from.
-
+1. Answer ONLY using the provided context. Never use outside knowledge.
+2. If the answer is not in the context, say exactly: "I couldn't find this in the indexed documentation."
+3. Always cite which source (Source 1, Source 2, etc.) your answer comes from.
 4. Keep answers clear and developer-friendly.
-
 5. Preserve code examples exactly as they appear in the context.
+6. Do not make up APIs, functions, or behaviors not mentioned in the context.
 
-6. Do not make up APIs, functions, or behaviors not mentioned
-   in the context.
-
-7. When documentation conflicts, do not invent a resolution.
-   Present the conflicting information and its source clearly.
-
-${contradictionInstruction}
-    `;
+ABSENCE HANDLING — this is critical:
+7. If the question asks whether something is supported, exists, or is possible
+   (e.g. "does X support Y", "can I do Z", "is there a way to..."), and the context
+   does NOT explicitly confirm or deny it, do NOT assume the answer is yes or no.
+   Say clearly: "The documentation does not explicitly state whether this is supported."
+8. Never treat silence in the documentation as confirmation of a feature's existence.
+   Absence of a mention is not evidence of absence OR presence — say so plainly.
+9. Only confirm "yes it supports X" or "no it does not" when the context contains
+   an explicit statement to that effect.
+${contradictionInstruction}`
 
   const userPrompt = `
 Documentation Context:
