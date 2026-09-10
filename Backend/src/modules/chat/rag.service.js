@@ -9,6 +9,7 @@ export async function runRAGPipeline({
   onDone,
   onError,
   onMetadata,
+  usageType = 'CHAT'
 }) {
 
   const startTime = Date.now();
