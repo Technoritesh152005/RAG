@@ -14,6 +14,7 @@ import { faqRoutes } from "./modules/chat/faq.routes.js";
 import prisma from "./lib/prisma.js";
 import { getIndex } from "./lib/pinecone.js";
 import {registerUsageRoutes} from './modules/analytics/usage.routes.js'
+import {evalRoutes} from './modules/eval/eval.routes.js'
 
 dotenv.config();
 
@@ -53,6 +54,7 @@ fastify.register(registerWorkspaceRoute, { prefix: "/api/workspace" });
 fastify.register(registerSourceRoutes, { prefix: "/api/workspaces" });
 fastify.register(chatRoutes, { prefix: "/api/workspaces" });
 fastify.register(registerUsageRoutes, { prefix: "/api/workspaces" });
+fastify.register(evalRoutes, {prefix:"/api/workspaces"})
 
 // create http server for socket.io
 const httpServer = createServer(fastify.server);

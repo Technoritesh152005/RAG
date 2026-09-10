@@ -121,3 +121,49 @@ model usageLog{
   @@index([workspaceId])
   @@index([type])
 }
+model EvalCase{
+  id String @default(uuid())
+  workspaceId String
+  question String
+  expectedPageUrls Json  // array of strings — pages that SHOULD be retrieved
+  expectedKeyFacts Json  // array of strings — facts the answer must contain
+   createdAt         DateTime @default(now())
+
+  @@index([workspaceId])
+}
+
+model EvalRun {
+  id String @id @default(uuid())
+  workspaceId String 
+  label String
+  totalCases Int
+  avgHitRate Float
+   avgMRR          Float    // mean reciprocal rank of expected page
+  avgJudgeScore   Float    // 0-1, LLM-judged answer quality
+  confidentRate   Float    // % of cases where pipeline was confident (not fallback)
+  avgLatencyMs    Int
+  p95LatencyMs    Int
+  createdAt       DateTime @default(now())
+  results         EvalResult[]
+
+  @@index([workspaceId])
+}
+
+model EvalResult{
+   id               String   @id @default(uuid())
+  runId            String
+  run              EvalRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+  caseId           String
+  question         String
+  retrievedUrls    Json     // pages actually retrieved, in rank order
+  hit              Boolean  // was any expected page in retrieved set
+  reciprocalRank   Float    // 0 if miss, 1/rank if hit
+  judgeScore       Float    // 0-1
+  judgeReasoning   String   @db.Text
+  confident        Boolean
+  latencyMs        Int
+  generatedAnswer  String   @db.Text
+  createdAt        DateTime @default(now())
+
+  @@index([runId])
+}
