@@ -1,5 +1,5 @@
-import { chunkPage } from './chunker.service'
-import { cleanHtml } from './readability.service'
+import { chunkPage } from './chunker.service.js'
+import { cleanHtml } from './readability.service.js'
 import { CheerioCrawler, Configuration } from 'crawlee'
 
 Configuration.getGlobalConfig().set('logLevel', 'ERROR') // Only log errors

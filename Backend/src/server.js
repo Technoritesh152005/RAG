@@ -1,8 +1,7 @@
-import { fastify } from "fastify";
+import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { Server } from "socket.io";
 import Redis from "ioredis";
-import createServer from "http";
 import dotenv from "dotenv";
 import { registerWorkspaceRoute } from "./modules/workspace/workspace_routes.js";
 import { verifyToken } from "./modules/auth/auth_service.js";
@@ -12,30 +11,31 @@ import { chatRoutes } from "./modules/chat/chat.routes.js";
 import rateLimit from "@fastify/rate-limit";
 import { faqRoutes } from "./modules/chat/faq.routes.js";
 import prisma from "./lib/prisma.js";
-import { getIndex } from "./lib/pinecone.js";
+import { getPineconeIndex } from "./lib/pinecone.js";
 import {registerUsageRoutes} from './modules/analytics/usage.routes.js'
 import {evalRoutes} from './modules/eval/eval.routes.js'
+import redis from './lib/redis.js'
 
 dotenv.config();
 
-const fastify = fastify({ logger: true });
+const app = Fastify({ logger: true });
 
-fastify.register(faqRoutes, { prefix: "/api/workspaces" });
+app.register(faqRoutes, { prefix: "/api/workspaces" });
 
-await fastify.register(rateLimit, {
+await app.register(rateLimit, {
   global: true,
   max: 100,
   timeWindow: "5 minute",
 
   errorResponseBuilder: (request, context) => ({
     error: "Too many request",
-    message: `rate Limit excedeed. Try again in ${time} `,
+    message: "Rate limit exceeded. Try again later.",
     statusCode: 429,
   }),
 });
 
 //strict rate limit for workspace based routes
-await fastify.register(rateLimit, {
+await app.register(rateLimit, {
   prefix: "/api/workspace",
   config: {
     rateLimit: {
@@ -45,19 +45,19 @@ await fastify.register(rateLimit, {
   },
 });
 
-await fastify.register(cors, {
+await app.register(cors, {
   origin: process.env.FRONTEND_URL || "http://localhost:3000",
   credentials: true,
 });
 
-fastify.register(registerWorkspaceRoute, { prefix: "/api/workspace" });
-fastify.register(registerSourceRoutes, { prefix: "/api/workspaces" });
-fastify.register(chatRoutes, { prefix: "/api/workspaces" });
-fastify.register(registerUsageRoutes, { prefix: "/api/workspaces" });
-fastify.register(evalRoutes, {prefix:"/api/workspaces"})
+app.register(registerWorkspaceRoute, { prefix: "/api/workspace" });
+app.register(registerSourceRoutes, { prefix: "/api/workspaces" });
+app.register(chatRoutes, { prefix: "/api/workspaces" });
+app.register(registerUsageRoutes, { prefix: "/api/workspaces" });
+app.register(evalRoutes, {prefix:"/api/workspaces"})
 
 // create http server for socket.io
-const httpServer = createServer(fastify.server);
+const httpServer = app.server;
 
 const io = new Server(httpServer, {
   cors: {
@@ -109,7 +109,7 @@ subRedis.on("message", (channel, message) => {
   }
 });
 
-fastify.get("/health", async (request, reply) => {
+app.get("/health", async (request, reply) => {
   const health = {
     status: "ok",
     timestamp: new Date().toISOString(),
@@ -136,7 +136,7 @@ fastify.get("/health", async (request, reply) => {
 
   // check Pinecone
   try {
-    const index = getIndex();
+    const index = getPineconeIndex();
     await index.describeIndexStats();
     health.services.pinecone = "ok";
   } catch {
@@ -152,11 +152,11 @@ fastify.get("/health", async (request, reply) => {
 const PORT = process.env.PORT || 4000;
 
 try {
-  await fastify.ready();
+  await app.ready();
   httpServer.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
 } catch (err) {
-  fastify.log.error(err);
+  app.log.error(err);
   process.exit(1);
 }

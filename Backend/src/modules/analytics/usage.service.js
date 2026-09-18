@@ -17,14 +17,16 @@ export async function logUsage({
 }) {
 
   try {
-    await prisma.logUsage.create({
-      workspaceId,
-      type,
-      embeddingTokens,
-      llmInputTokens,
-      llmOutputTokens,
-      latencyMs,
-      metadata,
+    await prisma.usageLog.create({
+      data: {
+        workspaceId,
+        type,
+        embeddingTokens,
+        llmInputTokens,
+        llmOutputTokens,
+        latencyMs,
+        metadata,
+      },
     });
   } catch (err) {
     // never let logging failure break the actual pipeline
@@ -36,7 +38,7 @@ export async function logUsage({
 //shows all stats for that particular workspace
 export async function getUsageStats(workspaceId){
 
-    const logs = await prisma.logUsage.findMany({
+    const logs = await prisma.usageLog.findMany({
         where:{
             workspaceId
         }

@@ -9,7 +9,7 @@ export function cleanHtml(rawHtml, url) {
     try {
 
         // creates a dom structure
-        const dom = new JSDOM(html, { url })
+        const dom = new JSDOM(rawHtml, { url })
 
         // run readability 
         const reader = new Readability(dom.window.document, {
@@ -23,7 +23,7 @@ export function cleanHtml(rawHtml, url) {
         const article = reader.parse()
         if (!article) {
             // try fallback method
-            const fallbackDom = new JSDOM(html)
+            const fallbackDom = new JSDOM(rawHtml)
             return {
                 title: fallbackDom.window.document.title || '',
                 content: fallbackDom.window.document.body?.textContent?.trim() || '',
@@ -37,7 +37,7 @@ export function cleanHtml(rawHtml, url) {
         }
 
     } catch (error) {
-        console.error(`Readability failed for ${url}:`, err.message)
+        console.error(`Readability failed for ${url}:`, error.message)
         return { title: '', content: '', failed: true }
     }
 }

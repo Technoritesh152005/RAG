@@ -3,7 +3,7 @@ import {getAllMessages,deleteWorkspaceMessage} from './chat.service.js'
 
 export async function chatRoutes(fastify){
 
-    fastify.addHook('authenticationMiddleware', authenticateMiddleware)
+    fastify.addHook('preHandler', authenticateMiddleware)
 
     fastify.get('/:workspaceId/messages', async(request,reply)=>{
         try{
@@ -25,7 +25,7 @@ export async function chatRoutes(fastify){
             await deleteWorkspaceMessage(workspaceId,request.user.id)
          return reply.send({ message: 'Chat history cleared' })
         }catch(error){
-        return reply.status(400).send({ error: err.message })
+        return reply.status(400).send({ error: error.message })
         }
     })
 }

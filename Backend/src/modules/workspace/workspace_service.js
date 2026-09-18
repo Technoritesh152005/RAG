@@ -1,4 +1,4 @@
-import prisma from "../../lib/prisma"; 
+import prisma from "../../lib/prisma.js";
 import { cleanupWorkspace } from './cleanup.service.js'
 
 export  async function createWorkspace({name,userId , description}){
@@ -22,7 +22,7 @@ export function getWorkspace(userId){
     })
 }
 
-export function getWorkspaceById (id , userId){
+export async function getWorkspaceById (id , userId){
     // return first matching record
     const workspace = prisma.workspace.findFirst({
         where:{id, userId},
@@ -60,7 +60,7 @@ export async function updateWorkspace (userId,id, data){
 }
 
 export async function workspaceStats(workspaceId, userId){
-    const workspace = await prisma.workspace.findUnique({
+    const workspace = await prisma.workspace.findFirst({
         where:{
             id:workspaceId,
             userId
@@ -69,7 +69,7 @@ export async function workspaceStats(workspaceId, userId){
 
     if(!workspace){throw new Error('No workspace found to show its stats')}
 
-    const {sources, chunkCount, messageCount, faqCount} = await promise.all([
+    const {sources, chunkCount, messageCount, faqCount} = await Promise.all([
         prisma.source.findMany({
             where:{
                 workspaceId
@@ -92,7 +92,7 @@ export async function workspaceStats(workspaceId, userId){
                 workspaceId
             }
         }),
-        prisma.FAQ.count({
+        prisma.fAQ.count({
             where:{
                 workspaceId
             }
@@ -119,4 +119,5 @@ export async function workspaceStats(workspaceId, userId){
     totalChunks: chunkCount,
     totalMessages: messageCount,
     totalFAQs: faqCount
+    }
 }

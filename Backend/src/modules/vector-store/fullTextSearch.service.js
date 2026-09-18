@@ -74,7 +74,7 @@ export async function keywordSearch(query, workspaceId, topK = 10) {
                 )
 
         ) AS rank
-         FROM "CHUNK"
+         FROM "Chunk"
 
          WHERE "workspaceId" = ${workspaceId}
          AND 
@@ -106,7 +106,7 @@ export async function keywordSearch(query, workspaceId, topK = 10) {
 
     } catch (error) {
         // if FTS fails — return empty, vector search still works
-        console.error('FTS keywordSearch error:', err.message)
+        console.error('FTS keywordSearch error:', error.message)
         return []
     }
 }
@@ -114,11 +114,17 @@ export async function keywordSearch(query, workspaceId, topK = 10) {
 // called before reindexing — keeps DB clean
 
 export async function deleteSourceChunks(sourceId) {
-    await prisma.chunk.deleteMany({
-        where: {
-            id: sourceId
-        }
+    const chunks = await prisma.chunk.findMany({
+        where: { sourceId },
+        select: { id: true }
     })
+
+    await prisma.$transaction([
+        prisma.chunkHash.deleteMany({
+            where: { chunkId: { in: chunks.map(chunk => chunk.id) } }
+        }),
+        prisma.chunk.deleteMany({ where: { sourceId } })
+    ])
     console.log(`FTS: deleted chunks for source ${sourceId}`)
 }
 

@@ -1,9 +1,10 @@
-import { GoogleGenerativeAi } from '@google/generative-ai'
+import 'dotenv/config'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const genAi = new GoogleGenerativeAi(process.env.GEMINI_API_KEY)
+const genAi = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 
-const EMBEDDING_MODEL = 'text-embedding-004'
-// we use 768 dimension model for embeeding.. no more diff compare to 1576 something just small pattern was also noted or discovered in 1576 dimension embedding model
+const EMBEDDING_MODEL = 'gemini-embedding-001'
+const EMBEDDING_DIMENSION = 1536
 
 // no of text to give during embedding
 const BATCH_SIZE = 100
@@ -18,19 +19,18 @@ export async function embeddingText(text) {
 
         const result = await model.embedContent({
             content: {
-                parts: [{ text: text.replace('/\n/g', ' ').trim() }],
+                parts: [{ text: text.replace(/\n/g, ' ').trim() }],
                 role: 'user'
             },
-            taskType: 'RETRIEVAL_QUERY' /* optimized for search queries, means this tells gemini that this is a search query and not your document query */
+            taskType: 'RETRIEVAL_QUERY',
+            outputDimensionality: EMBEDDING_DIMENSION
         })
-
-        console.log(result)
 
         return result.embedding.values  /* Array of 756 floats also known as vectors */
 
-    } catch (Error) {
-        console.error('Gemini embedText error:', err.message)
-        throw err
+    } catch (error) {
+        console.error('Gemini embedText error:', error.message)
+        throw error
     }
 }
 
@@ -45,7 +45,8 @@ export async function embeddingDocument(text) {
                 parts: [{ text: text.replace(/\n/g, ' ').trim() }],
                 role: 'user'
             },
-            taskType: 'RETRIEVAL_DOCUMENT'  // optimized for documents
+            taskType: 'RETRIEVAL_DOCUMENT',
+            outputDimensionality: EMBEDDING_DIMENSION
         })
 
         return result.embedding.values
@@ -65,8 +66,7 @@ export async function embeddingBatches(text) {
         // means it starts at 0 and further 100 , then 200 and then 300//.. this helps to maintains batches
         const batch = text.slice(i, i + BATCH_SIZE);
         const batchNumber = Math.floor(i / BATCH_SIZE) + 1 /* that is for 0 to 100 chunks the batch number will be 1 */
-        console.log(batch)
-        console.log(`Embedding batch ${batchNumber}/${totalBatches} (${batch.length} texts)`)
+        console.log(`Embedding batch ${batchNumber}/${batches} (${batch.length} texts)`)
 
         /* You use Promise cause u need all chunks to finish embedding then only return the result... and it also return an array */
         const batchEmbedding = await Promise.all(
@@ -75,8 +75,6 @@ export async function embeddingBatches(text) {
         )
 
         allEmbeddings.push(...batchEmbedding)
-        console.log(allEmbeddings)
-
         // delay between batches — respect free tier rate limits
         if (i + BATCH_SIZE < text.length) {
             await sleep(500)  // 500ms between batches

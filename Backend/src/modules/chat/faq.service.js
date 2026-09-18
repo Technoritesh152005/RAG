@@ -1,5 +1,6 @@
 import prisma from '../../lib/prisma.js'
-import { generateText } from './groq.service.js'
+import crypto from 'crypto'
+import { generateTextFAQs as generateText } from './groq.service.js'
 import { getUserQuestions, getMessageCount } from './chat.service.js'
 import { runRAGPipeline } from './rag.service.js'
 
@@ -124,7 +125,7 @@ export async function deleteFAQs(workspaceId) {
 
 function generateFAQId(workspaceId, question) {
   // deterministic ID from workspace + question
-  return require('crypto')
+  return crypto
     .createHash('md5')
     .update(`${workspaceId}-${question}`)
     .digest('hex')

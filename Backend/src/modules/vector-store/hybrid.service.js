@@ -1,9 +1,9 @@
-import { embeddingText } from '../Embeeding/embeeding.service.config'
+import { embeddingText } from '../Embeeding/embeeding.service.config.js'
 import { vectorSearch } from './pinecone.service.js'
 import { keywordSearch } from './fullTextSearch.service.js'
 
 const RRF_k = 60
-const MIN_CONFIDENCE_SCORE = 0.15
+const MIN_CONFIDENCE_SCORE = 0.03
 
 export async function hybridSearch(question, workspaceId, topK = 5) {
 
@@ -12,7 +12,7 @@ export async function hybridSearch(question, workspaceId, topK = 5) {
     const questionEmbedding = await embeddingText(question)
 
     // once both r completed to run then only op comes together... Both works parallely
-    const [vectorResults, keywordResults] = await Promise.all([
+    const [vectorResults = [], keywordResults = []] = await Promise.all([
         vectorSearch(questionEmbedding, workspaceId, topK * 2),
         keywordSearch(question, workspaceId, topK * 2)
     ])

@@ -6,7 +6,7 @@ import {deleteWorkspaceHashes} from '../Embeeding/hashChunk.service.js'
 import prisma from '../../lib/prisma.js'
 
 //when deleted workspace so delete all vectors and chunks. this basically links or bring each service together
-export async function cleanUpWorkspace(workspaceId){
+export async function cleanupWorkspace(workspaceId){
 
     console.log(`The workspace vectors and chunks deletion process is getting started`)
 
@@ -21,10 +21,10 @@ export async function cleanUpWorkspace(workspaceId){
 }
 
 //cleanup when a single source is deleted
-export async function cleanUpSource(sourceId, workspaceId){
+export async function cleanupSource(sourceId, workspaceId){
     console.log(`Cleaning up source: ${sourceId}`)
 
-    await promise.all([
+    await Promise.all([
         deleteVectors(sourceId, workspaceId),
         deleteSourceChunks(sourceId)
     ])
