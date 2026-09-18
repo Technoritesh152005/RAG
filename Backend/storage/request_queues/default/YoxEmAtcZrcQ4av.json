@@ -1,9 +1,0 @@
-{
-	"id": "YoxEmAtcZrcQ4av",
-	"json": "{\"id\":\"YoxEmAtcZrcQ4av\",\"url\":\"https://react.dev/learn/add-react-to-an-existing-project\",\"loadedUrl\":\"https://react.dev/learn/add-react-to-an-existing-project\",\"uniqueKey\":\"https://react.dev/learn/add-react-to-an-existing-project\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-09-18T11:54:08.853Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://react.dev/learn/add-react-to-an-existing-project",
-	"url": "https://react.dev/learn/add-react-to-an-existing-project"
-}

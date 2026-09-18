@@ -1,9 +1,0 @@
-{
-	"id": "K3I9dvRPGMqPq7a",
-	"json": "{\"id\":\"K3I9dvRPGMqPq7a\",\"url\":\"https://react.dev/learn/rendering-lists\",\"loadedUrl\":\"https://react.dev/learn/rendering-lists\",\"uniqueKey\":\"https://react.dev/learn/rendering-lists\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-09-18T11:54:16.092Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://react.dev/learn/rendering-lists",
-	"url": "https://react.dev/learn/rendering-lists"
-}

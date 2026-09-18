@@ -1,9 +1,0 @@
-{
-	"id": "QafUFSR0xYIoYZC",
-	"json": "{\"id\":\"QafUFSR0xYIoYZC\",\"url\":\"https://react.dev/learn/passing-props-to-a-component\",\"loadedUrl\":\"https://react.dev/learn/passing-props-to-a-component\",\"uniqueKey\":\"https://react.dev/learn/passing-props-to-a-component\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-09-18T11:54:14.182Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://react.dev/learn/passing-props-to-a-component",
-	"url": "https://react.dev/learn/passing-props-to-a-component"
-}

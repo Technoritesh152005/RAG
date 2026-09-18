@@ -1,9 +1,0 @@
-{
-	"id": "mzpftBqxH7ZF0aC",
-	"json": "{\"id\":\"mzpftBqxH7ZF0aC\",\"url\":\"https://react.dev/learn/state-as-a-snapshot\",\"loadedUrl\":\"https://react.dev/learn/state-as-a-snapshot\",\"uniqueKey\":\"https://react.dev/learn/state-as-a-snapshot\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-09-18T11:54:20.161Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://react.dev/learn/state-as-a-snapshot",
-	"url": "https://react.dev/learn/state-as-a-snapshot"
-}

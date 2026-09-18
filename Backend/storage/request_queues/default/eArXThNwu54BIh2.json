@@ -1,9 +1,0 @@
-{
-	"id": "eArXThNwu54BIh2",
-	"json": "{\"id\":\"eArXThNwu54BIh2\",\"url\":\"https://react.dev/learn/updating-arrays-in-state\",\"loadedUrl\":\"https://react.dev/learn/updating-arrays-in-state\",\"uniqueKey\":\"https://react.dev/learn/updating-arrays-in-state\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-09-18T11:54:20.860Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://react.dev/learn/updating-arrays-in-state",
-	"url": "https://react.dev/learn/updating-arrays-in-state"
-}

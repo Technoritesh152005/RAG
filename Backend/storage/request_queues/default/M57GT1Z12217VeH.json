@@ -1,9 +1,0 @@
-{
-	"id": "M57GT1Z12217VeH",
-	"json": "{\"id\":\"M57GT1Z12217VeH\",\"url\":\"https://react.dev/learn/react-compiler/incremental-adoption\",\"loadedUrl\":\"https://react.dev/learn/react-compiler/incremental-adoption\",\"uniqueKey\":\"https://react.dev/learn/react-compiler/incremental-adoption\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-09-18T11:54:11.806Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://react.dev/learn/react-compiler/incremental-adoption",
-	"url": "https://react.dev/learn/react-compiler/incremental-adoption"
-}

@@ -1,9 +1,0 @@
-{
-	"id": "8YwiCbLhX5bGJf1",
-	"json": "{\"id\":\"8YwiCbLhX5bGJf1\",\"url\":\"https://react.dev/learn/react-compiler/debugging\",\"loadedUrl\":\"https://react.dev/learn/react-compiler/debugging\",\"uniqueKey\":\"https://react.dev/learn/react-compiler/debugging\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-09-18T11:54:11.806Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://react.dev/learn/react-compiler/debugging",
-	"url": "https://react.dev/learn/react-compiler/debugging"
-}

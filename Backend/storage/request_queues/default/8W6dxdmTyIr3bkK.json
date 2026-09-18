@@ -1,9 +1,0 @@
-{
-	"id": "8W6dxdmTyIr3bkK",
-	"json": "{\"id\":\"8W6dxdmTyIr3bkK\",\"url\":\"https://react.dev/learn/preserving-and-resetting-state\",\"loadedUrl\":\"https://react.dev/learn/preserving-and-resetting-state\",\"uniqueKey\":\"https://react.dev/learn/preserving-and-resetting-state\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-09-18T11:54:25.695Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://react.dev/learn/preserving-and-resetting-state",
-	"url": "https://react.dev/learn/preserving-and-resetting-state"
-}

@@ -1,9 +1,0 @@
-{
-	"id": "f8hIHKXj6ZDQV0V",
-	"json": "{\"id\":\"f8hIHKXj6ZDQV0V\",\"url\":\"https://react.dev/learn/typescript\",\"loadedUrl\":\"https://react.dev/learn/typescript\",\"uniqueKey\":\"https://react.dev/learn/typescript\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-09-18T11:54:09.868Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://react.dev/learn/typescript",
-	"url": "https://react.dev/learn/typescript"
-}

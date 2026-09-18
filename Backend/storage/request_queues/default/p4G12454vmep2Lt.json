@@ -1,9 +1,0 @@
-{
-	"id": "p4G12454vmep2Lt",
-	"json": "{\"id\":\"p4G12454vmep2Lt\",\"url\":\"https://react.dev/learn/synchronizing-with-effects\",\"loadedUrl\":\"https://react.dev/learn/synchronizing-with-effects\",\"uniqueKey\":\"https://react.dev/learn/synchronizing-with-effects\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-09-18T11:54:31.385Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://react.dev/learn/synchronizing-with-effects",
-	"url": "https://react.dev/learn/synchronizing-with-effects"
-}
