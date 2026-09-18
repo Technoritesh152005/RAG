@@ -1,0 +1,9 @@
+{
+	"id": "DLbfTJA2T0SJ7OK",
+	"json": "{\"id\":\"DLbfTJA2T0SJ7OK\",\"url\":\"https://react.dev/learn/queueing-a-series-of-state-updates\",\"loadedUrl\":\"https://react.dev/learn/queueing-a-series-of-state-updates\",\"uniqueKey\":\"https://react.dev/learn/queueing-a-series-of-state-updates\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-09-18T11:54:19.699Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://react.dev/learn/queueing-a-series-of-state-updates",
+	"url": "https://react.dev/learn/queueing-a-series-of-state-updates"
+}

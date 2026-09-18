@@ -7,10 +7,12 @@ export async function saveMessage({
   sources = null,
 }) {
   return prisma.message.create({
-    workspaceId,
-    role,
-    content,
-    sources, // stored as json in postgres
+    data: {
+      workspaceId,
+      role,
+      content,
+      sources, // stored as json in postgres
+    },
   });
 }
 
@@ -29,7 +31,7 @@ export async function getAllMessages(workspaceId, userId) {
     where: {
       workspaceId,
     },
-    order: {
+    orderBy: {
       createdAt: "asc", //take oldest 100 msg first
     },
     take: 100, //

@@ -48,7 +48,7 @@ export async function registerSourceRoutes(fastify){
             if(error.code ==='P2002'){
                 return reply.code(409).send({error:'Url already exist in this worspace. Try other url or create other workspace for this source url'})
             }
-            return reply.status(400).send({ error: err.message })
+            return reply.status(400).send({ error: error.message })
         }
     })
 
@@ -71,7 +71,7 @@ export async function registerSourceRoutes(fastify){
           )
           return reply.send({ source })
         } catch (err) {
-          return reply.status(400).send({ error: err.message })
+                    return reply.status(400).send({ error: err.message })
         }
       })
 }

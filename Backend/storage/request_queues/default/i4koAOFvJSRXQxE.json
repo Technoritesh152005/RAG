@@ -1,0 +1,9 @@
+{
+	"id": "i4koAOFvJSRXQxE",
+	"json": "{\"id\":\"i4koAOFvJSRXQxE\",\"url\":\"https://react.dev/learn/you-might-not-need-an-effect\",\"loadedUrl\":\"https://react.dev/learn/you-might-not-need-an-effect\",\"uniqueKey\":\"https://react.dev/learn/you-might-not-need-an-effect\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-09-18T11:54:31.392Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://react.dev/learn/you-might-not-need-an-effect",
+	"url": "https://react.dev/learn/you-might-not-need-an-effect"
+}

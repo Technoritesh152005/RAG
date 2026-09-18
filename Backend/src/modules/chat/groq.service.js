@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import Groq from "groq-sdk";
 
 const groq = new Groq({
@@ -40,6 +41,7 @@ export async function streamAnswer({
 
       if (smallContent) {
         fullAnswer += smallContent;
+        onToken(smallContent);
       }
 
       if (chunk.choices[0]?.finish_reason === "STOP") {
@@ -48,7 +50,7 @@ export async function streamAnswer({
     }
 
     //on done streaming
-    onDone(fullAnswer);
+    await onDone(fullAnswer);
     return fullAnswer;
   } catch (err) {
     console.error("Groq stream error:", err.message);
@@ -69,5 +71,5 @@ export async function generateTextFAQs(systemPrompt, userPrompt) {
     ],
     stream:false
   });
-  return response.choices[0]?.delta?.content || "";
+  return response.choices[0]?.message?.content || "";
 }

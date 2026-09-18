@@ -1,0 +1,9 @@
+{
+	"id": "qL6PDDoFnjWFG68",
+	"json": "{\"id\":\"qL6PDDoFnjWFG68\",\"url\":\"https://react.dev/learn/react-developer-tools\",\"loadedUrl\":\"https://react.dev/learn/react-developer-tools\",\"uniqueKey\":\"https://react.dev/learn/react-developer-tools\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-09-18T11:54:10.078Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://react.dev/learn/react-developer-tools",
+	"url": "https://react.dev/learn/react-developer-tools"
+}

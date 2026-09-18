@@ -1,16 +1,25 @@
 {
+  "type": "module",
   "dependencies": {
     "@fastify/cors": "^11.3.0",
     "@fastify/jwt": "^10.2.0",
     "@fastify/rate-limit": "^11.2.0",
     "@google-cloud/aiplatform": "^6.10.0",
     "@google/generative-ai": "^0.24.1",
+    "@langchain/textsplitters": "^0.1.0",
+    "@mozilla/readability": "^0.6.0",
+    "@pinecone-database/pinecone": "^6.1.2",
     "@prisma/client": "^6.19.3",
+    "@supabase/supabase-js": "^2.49.0",
     "bullmq": "^5.80.2",
     "fastify": "^5.10.0",
     "ioredis": "^5.11.1",
+    "jsdom": "^26.0.0",
     "prisma": "^6.19.3",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "crawlee": "^3.13.0",
+    "groq-sdk": "^1.6.0",
+    "zod": "^3.25.0"
   },
   "devDependencies": {
     "dotenv": "^17.4.2"

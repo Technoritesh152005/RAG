@@ -1,5 +1,5 @@
-import { hybridSearch } from "../vector-store/pinecone.service.js";
-import { generateTextFAQs } from "../chat/groq.service.js";
+import { hybridSearch } from "../vector-store/hybrid.service.js";
+import { generateTextFAQs, streamAnswer } from "../chat/groq.service.js";
 import {logUsage,estimateTokens} from '../analytics/usage.service.js'
 
 export async function runRAGPipeline({
@@ -23,11 +23,11 @@ export async function runRAGPipeline({
 
   /* Generating fallback answer */
   if (!confident || results.length == 0) {
-    const fallbackAnswer = buildFallbackAnswer(reason, results, reason);
+    const fallbackAnswer = buildFallbackAnswer(results);
 
     //citation means the source of data means ur answer came that is okay but show me source
     onMetadata({
-      citiations: [],
+      citations: results,
       hasContradiction: false,
       confident: false,
       reason,
@@ -38,13 +38,14 @@ export async function runRAGPipeline({
  // log even fallback responses — still a real request
     await logUsage({
       workspaceId,
-      type: 'CHAT',
+      type: usageType,
       embeddingTokens: estimateTokens(question),
       llmInputTokens: 0,
       llmOutputTokens: estimateTokens(fallbackAnswer),
       latencyMs: Date.now() - startTime,
       metadata: { confident: false, question }
     })
+    return;
   }
 
   /* Step 3: CONTRADICTION DETECTION */
@@ -73,6 +74,14 @@ export async function runRAGPipeline({
     contradiction,
   });
 
+  onMetadata({
+    citations: results,
+    hasContradiction: Boolean(contradiction),
+    contradictions: contradiction ? [contradiction] : [],
+    confident: true,
+    reason: null,
+  });
+
   /* Step 6 : get the response(STREAM ANSWER) */
   console.log("Streaming answer from GROQ");
 
@@ -84,10 +93,10 @@ export async function runRAGPipeline({
 
        await logUsage({
         workspaceId,
-        type: 'CHAT',
+        type: usageType,
         embeddingTokens: estimateTokens(question),
         llmInputTokens: estimateTokens(systemPrompt + userPrompt),
-        llmOutputTokens: estimateTokens(completeAnswer),
+        llmOutputTokens: estimateTokens(complete),
         latencyMs: Date.now() - startTime,
         metadata: {
           confident: true,
@@ -95,13 +104,13 @@ export async function runRAGPipeline({
           chunksUsed: results.length
         }
       })
-      onDone(completeAnswer)
+      onDone(complete)
     },
     onError,
   });
 }
 
-function buildFallbackAnswer(question, results, reason) {
+function buildFallbackAnswer(results) {
   if (results.length == 0) {
     return `
         I couldn't find relevant content for your question in the indexed documentation. 
@@ -114,8 +123,7 @@ This could mean:
 You can also add more documentation sources to this workspace.
         `;
   }
-  return;
-  `
+  return `
     I found some related content but my confidence is too low to give a reliable answer.
 
 This usually means the indexed documentation doesn't directly address your question.
@@ -128,7 +136,7 @@ Try:
 
 async function detectContradiction(question, results) {
   const uniquePages = new Set(results.map((r) => r.pageUrl));
-  if (uniquePages < 2) {
+  if (uniquePages.size < 2) {
     return null;
     //there will be no contradiction as pages has been less than 2(unique)
   }
@@ -229,7 +237,7 @@ and their explicitly stated version/deprecation context.
 
   let parsed;
   try {
-    generateTextFAQs(
+    const raw = await generateTextFAQs(
       "Return only valid JSON. No markdown. No explanation.",
       detectPrompt,
     );

@@ -18,7 +18,7 @@ export const ingestionQueue = new Queue(
 //basically puts the ingestion job in the queue and it will be processed by the worker
 export async function addIngestionQueue(data){
     const job = await ingestionQueue.add('ingest-source', data , {
-        jobId:`source-${data.sourceId}`
+        jobId: data.jobId || `source-${data.sourceId}`
     })
     console.log('Ingestion job added in queue')
 }

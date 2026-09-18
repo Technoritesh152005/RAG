@@ -1,8 +1,9 @@
 import dotenv from 'dotenv'
 import { Worker } from 'bullmq'
 import redis from '../lib/redis.js'
-import { updateSourceStatus } from '../modules/sources/source.js'
+import { updateSourceStatus } from '../modules/sources/source.service.js'
 import { crawlSource } from '../modules/crawler/crawler.service.js'
+import { embedAndStore } from '../modules/jobs/ingestion.job.js'
 import prisma from '../lib/prisma.js'
 
 dotenv.config();
@@ -47,13 +48,33 @@ const worker = new Worker(
             await updateSourceStatus(sourceId, 'CHUNKING')
             await emitStatusUpdates(workspaceId, sourceId, 'CHUNKING')
 
+            await updateSourceStatus(sourceId, 'EMBEDDING')
+            await emitStatusUpdates(workspaceId, sourceId, 'EMBEDDING')
+
+            if (allChunks.length === 0) {
+                throw new Error('No chunks were produced from the source')
+            }
+
+            await embedAndStore(allChunks, sourceId, workspaceId)
+
+            await updateSourceStatus(sourceId, 'DONE', {
+                pageCount,
+                chunkCount,
+            })
+            await emitStatusUpdates(workspaceId, sourceId, 'DONE', {
+                pageCount,
+                chunkCount,
+            })
+
         } catch (error) {
-            console.error(`Ingestion failed for source ${sourceId}:`, err.message)
+            console.error(`Ingestion failed for source ${sourceId}:`, error.message)
 
             // mark as failed with error message
             await updateSourceStatus(sourceId, 'FAILED', {
                 error: error.message
             })
+
+            throw error
         }
     },
     {
@@ -65,7 +86,7 @@ const worker = new Worker(
 // now we use pub sub here cause in our rag we have 2 independent process- worker and server
 // pub sub helps to tell frontend with help of socket the status of ingestion
 
-async function emitStatusUpdates(sourceId, workspaceId, status , extra={}){
+export async function emitStatusUpdates(workspaceId, sourceId, status, extra = {}){
 
     await redis.publish('source:status', JSON.stringify({
         workspaceId,

@@ -1,0 +1,9 @@
+{
+	"id": "ASEshV05HprJUop",
+	"json": "{\"id\":\"ASEshV05HprJUop\",\"url\":\"https://react.dev/learn/build-a-react-app-from-scratch\",\"loadedUrl\":\"https://react.dev/learn/build-a-react-app-from-scratch\",\"uniqueKey\":\"https://react.dev/learn/build-a-react-app-from-scratch\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-09-18T11:54:07.145Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://react.dev/learn/build-a-react-app-from-scratch",
+	"url": "https://react.dev/learn/build-a-react-app-from-scratch"
+}

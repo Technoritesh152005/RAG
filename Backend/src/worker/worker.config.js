@@ -2,8 +2,9 @@ import { Worker } from "bullmq";
 import dotenv from "dotenv";
 import redis from "../lib/redis.js";
 import { embedAndStore } from "../modules/jobs/ingestion.job.js";
-import { updateSourceStatus } from "../modules/sources/source.js";
-import { emitStatusUpdates } from "../worker/ingestion.worker.js";
+import { updateSourceStatus } from "../modules/sources/source.service.js";
+import { crawlSource } from "../modules/crawler/crawler.service.js";
+import prisma from "../lib/prisma.js";
 
 //loads env var in nodejs process
 dotenv.config();
@@ -24,7 +25,7 @@ const worker = new Worker(
           sourceId,
           workspaceId,
     
-          onProgress: async ({ pageUrl, pageTitle }) => {
+          onProgress: async ({ pageUrl, pageCount }) => {
             console.log(`Scraped page ${pageCount}: ${pageUrl}`);
             // update live page count in DB as crawling progresses
             //verytime a page is crawled it is updated in db
@@ -56,7 +57,7 @@ const worker = new Worker(
           sourceId,
           workspaceId,
             async({completed,total})=>{
-             console.log(`Embedding progress: ${processed}/${total}`)
+             console.log(`Embedding progress: ${completed}/${total}`)
           }
         );
     
@@ -88,6 +89,15 @@ const worker = new Worker(
   },
   { connection: redis, concurrency: 3 },
 );
+
+async function emitStatusUpdates(workspaceId, sourceId, status, extra = {}) {
+  await redis.publish("source:status", JSON.stringify({
+    workspaceId,
+    sourceId,
+    status,
+    ...extra,
+  }));
+}
 
 worker.on("completed", (job) => {
   console.log(`Job ${job.id} completed`);

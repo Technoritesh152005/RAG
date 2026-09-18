@@ -1,0 +1,9 @@
+{
+	"id": "wH4VTPnqaF6mAIz",
+	"json": "{\"id\":\"wH4VTPnqaF6mAIz\",\"url\":\"https://react.dev/learn/referencing-values-with-refs\",\"loadedUrl\":\"https://react.dev/learn/referencing-values-with-refs\",\"uniqueKey\":\"https://react.dev/learn/referencing-values-with-refs\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-09-18T11:54:29.480Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://react.dev/learn/referencing-values-with-refs",
+	"url": "https://react.dev/learn/referencing-values-with-refs"
+}

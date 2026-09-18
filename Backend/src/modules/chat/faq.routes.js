@@ -1,7 +1,7 @@
 import {authenticateMiddleware} from '../auth/auth_middleware.js'
 import {getFAQs, generateFAQ} from '../chat/faq.service.js'
 
-export async function faqRoutes(){
+export async function faqRoutes(fastify){
 
     fastify.addHook('preHandler', authenticateMiddleware)
 

@@ -1,8 +1,8 @@
 //
 // here after creating workspace u trgger the job in queue
 import prisma from "../../lib/prisma.js";
-import { addIngestionQueue, ingestionQueue } from "../jobs/queue.js";
-import { cleanupSource } from "../workspaces/cleanup.service.js";
+import { addIngestionQueue } from "../jobs/queue.js";
+import { cleanupSource } from "../workspace/cleanup.service.js";
 
 export function validateSourceUrl(sourceUrl) {
   let parsed;
@@ -103,7 +103,7 @@ export async function reIndexSource(sourceId, userId) {
   const source = await prisma.source.findFirst({
     where: {
       id: sourceId,
-      workspaceId: { userId },
+      workspace: { userId },
     },
   });
   if (!source) throw new Error("No Source found for re-indexing");
@@ -117,11 +117,14 @@ export async function reIndexSource(sourceId, userId) {
     },
   });
 
-  await ingestionQueue({
+  await addIngestionQueue({
     sourceId: source.id,
     workspaceId: source.workspaceId,
     url: source.url,
+    jobId: `reindex-${source.id}-${Date.now()}`,
   });
+
+  return updatedSource;
 }
 
 export async function updateSourceStatus(sourceId, status, extraFields = {}) {

@@ -2,6 +2,14 @@ import {verifyToken} from './auth_service.js'
 
 export async function authenticateMiddleware(request , reply){
 
+    if (process.env.NODE_ENV !== 'production' && process.env.LOCAL_AUTH_BYPASS === 'true') {
+        request.user = {
+            id: process.env.LOCAL_USER_ID || 'local-dev-user',
+            app_metadata: { role: 'admin' }
+        }
+        return
+    }
+
     try{
 
         //we extract the authorization header from the request to verify the token

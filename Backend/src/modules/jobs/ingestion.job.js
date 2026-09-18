@@ -2,7 +2,7 @@ import { embeddingBatches } from "../Embeeding/embeeding.service.config.js";
 import { upsertChunks, deleteVectors } from "../vector-store/pinecone.service.js";
 import { deleteSourceChunks } from "../vector-store/fullTextSearch.service.js";
 import { storeChunksForFullTextSearch } from "../vector-store/fullTextSearch.service.js";
-import {deduplicateChunks} from '../Embeeding/hashChunk.service.js'
+import {deduplicateChunks, persistChunkHashes} from '../Embeeding/hashChunk.service.js'
 import {logUsage} from '../analytics/usage.service.js'
 const BATCH_SIZE = 100;
 export async function embedAndStore(chunks, sourceId, workspaceId, onProgress) {
@@ -18,16 +18,20 @@ export async function embedAndStore(chunks, sourceId, workspaceId, onProgress) {
     deleteSourceChunks(sourceId)
   ]);
 
-  const {uniqueChunks , duplicateMap} = await deduplicateChunks(chunks,workspaceId)
+  const {uniqueChunks, duplicateMap, newHashRecords} = await deduplicateChunks(chunks,workspaceId)
    console.log(
     `Embedding ${uniqueChunks.length}/${chunks.length} chunks ` +
     `(saved ${duplicateMap.size} redundant embedding calls)`
   )
 
+  if (uniqueChunks.length === 0) {
+    throw new Error('No new chunks were available for embedding')
+  }
+
   let totalProcessed = 0;
   let totalEmbeddingTokensEstimate = 0;
-  for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-    const batch = chunks.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < uniqueChunks.length; i += BATCH_SIZE) {
+    const batch = uniqueChunks.slice(i, i + BATCH_SIZE);
 
     // Embed only the current batch so each embedding stays aligned with its chunk.
     const texts = batch.map((chunk) => chunk.childText);
@@ -44,14 +48,16 @@ export async function embedAndStore(chunks, sourceId, workspaceId, onProgress) {
       storeChunksForFullTextSearch(batch)
     ]);
 
+    await persistChunkHashes(newHashRecords.slice(i, i + batch.length));
+
     totalProcessed += batch.length;
 
-    console.log(`Processed and stored ${totalProcessed}/${chunks.length} chunks`);
+    console.log(`Processed and stored ${totalProcessed}/${uniqueChunks.length} chunks`);
 
     if (onProgress) {
       await onProgress({
         completed: totalProcessed,
-        total: chunks.length
+        total: uniqueChunks.length
       });
     }
   }
@@ -59,12 +65,12 @@ export async function embedAndStore(chunks, sourceId, workspaceId, onProgress) {
   //cost tracking
   await logUsage({
     workspaceId,
-    tupe:'INGESTION',
+    type:'INGESTION',
     embeddingTokens: totalEmbeddingTokensEstimate,
     llmInputTokens:0,
     llmOutputTokens:0,
     latencyMs: null,
-    metadat:{
+    metadata:{
       sourceId,
       totalChunks:chunks.length,
       uniqueChunks:uniqueChunks.length,

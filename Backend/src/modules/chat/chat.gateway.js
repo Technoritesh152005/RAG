@@ -6,7 +6,8 @@ import {
 import{
   checkAndGenerateFAQ
 }from './faq.service.js'
-import { runRagPipeline } from "./rag.service.js";
+import { runRAGPipeline } from "./rag.service.js";
+import prisma from "../../lib/prisma.js";
 
 export async function registerChatGateway(socketInstance) {
   //it listens the event based on this message event and callback function
@@ -29,12 +30,12 @@ export async function registerChatGateway(socketInstance) {
 
     socket.on("chat:message", async ({ question, workspaceId }) => {
       const userId = socket.user.id;
-      const now = date.now();
+      const now = Date.now();
       const userTimestamps = messageTimestamps.get(userId) || [];
 
       //keep only recent timestamp
       const recentTimestamps = userTimestamps.filter((t) => now - t < 60000);
-      if (recentTimestamps >= 20) {
+      if (recentTimestamps.length >= 20) {
         socket.emit("chat:error", {
           messages: "Too many messages. Please wait a moment and try again",
         });
@@ -45,6 +46,7 @@ export async function registerChatGateway(socketInstance) {
        messageTimestamps.set(userId, recentTimestamps)
       if (!workspaceId || !question || !question.trim()) {
         socket.emit("chat:error", { message: "Invalid question or Workspace" });
+        return;
       }
 
       //first check whether workspace even exist he is chatting
@@ -65,6 +67,7 @@ export async function registerChatGateway(socketInstance) {
         socket.emit("chat:error", {
           message: "Workspace not found.. Yeh dil Bandeya",
         });
+        return;
       }
 
       if (workspace.sources.length === 0) {
@@ -91,16 +94,14 @@ export async function registerChatGateway(socketInstance) {
       let finalCitations = [];
       try {
         console.log("Starting Rag Pipeline");
-        await runRagPipeline({
-          question: question.trim,
+        await runRAGPipeline({
+          question: question.trim(),
           workspaceId,
 
           //fires before streaming starts.sneds citation and contradiction to user
           onMetadata: (metadata) => {
-            finalCitations =
-              //the metadata sended like whether contradiction,citation,confident emit it
-
-              socket.emit("chat:metadata", {
+            finalCitations = metadata.citations || [];
+            socket.emit("chat:metadata", {
                 citations: metadata.citations,
                 hasContradiction: metadata.hasContradiction,
                 contradictions: metadata.contradictions,
@@ -111,7 +112,7 @@ export async function registerChatGateway(socketInstance) {
 
           onToken: (answer) => {
             finalFullAnswer += answer;
-            socket.emit("chat:token", { token });
+            socket.emit("chat:token", { token: answer });
           },
 
           onDone: async (completeAnswer) => {
@@ -120,17 +121,11 @@ export async function registerChatGateway(socketInstance) {
               role: "ASSISTANT",
               workspaceId,
               content: completeAnswer,
-              sources: completeAnswer,
+              sources: finalCitations,
             });
 
             //after rag completion check or generate faqs
             await checkAndGenerateFAQ(workspaceId).catch(()=>{})
-
-            socket.emit('chat:done', {
-              answer:completeAnswer,
-              citations:finalCitations
-            })
-
 
             socket.emit("chat:done", {
               answer: completeAnswer,
@@ -176,7 +171,7 @@ export async function registerChatGateway(socketInstance) {
       console.log(`Chat cleared for workspace ${workspaceId}`);
     });
 
-    socket.on("disconnet", () => {
+    socket.on("disconnect", () => {
       console.log(`Client disconnected: ${socket.user.id}`);
     });
   });

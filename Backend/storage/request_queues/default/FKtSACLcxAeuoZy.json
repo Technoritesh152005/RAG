@@ -1,0 +1,9 @@
+{
+	"id": "FKtSACLcxAeuoZy",
+	"json": "{\"id\":\"FKtSACLcxAeuoZy\",\"url\":\"https://react.dev/learn/adding-interactivity\",\"loadedUrl\":\"https://react.dev/learn/adding-interactivity\",\"uniqueKey\":\"https://react.dev/learn/adding-interactivity\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-09-18T11:54:17.354Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://react.dev/learn/adding-interactivity",
+	"url": "https://react.dev/learn/adding-interactivity"
+}

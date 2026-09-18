@@ -1,4 +1,4 @@
-import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter'
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
 import crypto from 'crypto'
 
 // it is basically a large chunk where RecursiveCharacterTextSplitter is a class and u r requiring its method by creating object
@@ -38,7 +38,7 @@ export async function chunkPage({ content, pageUrl, pageTitle, sourceId, workspa
             // generate stable parent id and hash it cause if docs dont change no need to re cawl. this avoids duplication of data
             const parentId = generateId(`${sourceId}-${pageUrl}-parent-${pIndex}`)
 
-            const childChunks = childSplitter.splitText(parentChunkText)
+            const childChunks = await childSplitter.splitText(parentChunkText)
 
             for (let cIndex = 0; cIndex < childChunks.length; cIndex++) {
                 const childText = childChunks[cIndex]
@@ -52,7 +52,7 @@ export async function chunkPage({ content, pageUrl, pageTitle, sourceId, workspa
 
                 allChunks.push({
                     id: chunkId,
-                    parentChunkText,
+                    parentText: parentChunkText,
                     childText,
                     metadata: {
                         sourceId,

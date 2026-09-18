@@ -1,0 +1,9 @@
+{
+	"id": "gjSWIXL0pu9zXYx",
+	"json": "{\"id\":\"gjSWIXL0pu9zXYx\",\"url\":\"https://react.dev/learn\",\"loadedUrl\":\"https://react.dev/learn\",\"uniqueKey\":\"https://react.dev/learn\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-09-18T11:54:02.742Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://react.dev/learn",
+	"url": "https://react.dev/learn"
+}

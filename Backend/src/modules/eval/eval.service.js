@@ -23,7 +23,7 @@ export async function getAllEvalTestCases(workspaceId) {
     where: {
       workspaceId,
     },
-    order: { createdAt: "asc" },
+    orderBy: { createdAt: "asc" },
   });
 }
 export async function deleteEvalCase(caseId, workspaceId) {
@@ -50,7 +50,7 @@ export async function runEvalTestCases(workspaceId, label = "unlabeled") {
     );
     results.push(...batchResults);
     console.log(
-      `Eval progress: ${Math.min(i + EVAL_CONCURRENCY, cases.length)}/${cases.length}`,
+      `Eval progress: ${Math.min(i + EVAL_CONCURRENCY, testCases.length)}/${testCases.length}`,
     );
   }
 
@@ -68,25 +68,25 @@ export async function runEvalTestCases(workspaceId, label = "unlabeled") {
     data: {
       workspaceId,
       label,
-      totalCases: cases.length,
-      avgHitRate: parseFloat((hitCount / cases.length).toFixed(4)),
+      totalCases: testCases.length,
+      avgHitRate: parseFloat((hitCount / testCases.length).toFixed(4)),
       avgMRR: parseFloat(avgMRR.toFixed(4)),
       avgJudgeScore: parseFloat(avgJudgeScore.toFixed(4)),
-      confidentRate: parseFloat((confidentCount / cases.length).toFixed(4)),
+      confidentRate: parseFloat((confidentCount / testCases.length).toFixed(4)),
       avgLatencyMs: Math.round(average(latencies)),
       p95LatencyMs: percentile(latencies, 95),
       results: {
         create: results.map((r) => ({
           caseId: r.caseId,
           question: r.question,
-          retrievedUrls: r.retrievedUrls,
+          retrievedUrls: r.retrievedUrl,
           hit: r.hit,
           reciprocalRank: r.reciprocalRank,
           judgeScore: r.judgeScore,
           judgeReasoning: r.judgeReasoning,
           confident: r.confident,
-          latencyMs: r.latencyMs,
-          generatedAnswer: r.generatedAnswer,
+          latencyMs: r.latency,
+          generatedAnswer: r.fullAnswer,
         })),
       },
     },
@@ -147,7 +147,7 @@ async function runSingleCase(evalCase, workspaceId) {
   const { score, reasoning } = await judgeAnswer(
     evalCase.question,
     fullAnswer,
-    evalCase.expectedUrl,
+    evalCase.expectedKeyFacts,
   );
 
   return {
@@ -196,7 +196,7 @@ Respond with ONLY this JSON, nothing else:
       reasoning: parsed.reasoning,
     };
   } catch (error) {
-    console.error("Judge scoring failed:", err.message);
+    console.error("Judge scoring failed:", error.message);
     return {
       score: 0,
       reasoning: "Judge parsing failed — treated as failing score",
@@ -221,7 +221,7 @@ export async function getEvalRuns(workspaceId) {
       p95LatencyMs: true,
       createdAt: true,
     },
-    order: { createdAt: "desc" },
+    orderBy: { createdAt: "desc" },
   });
 }
 

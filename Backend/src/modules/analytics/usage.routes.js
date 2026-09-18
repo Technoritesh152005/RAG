@@ -1,4 +1,4 @@
-import {authenticateMiddleware} from '../../middleware/auth.middleware.js'
+import {authenticateMiddleware} from '../auth/auth_middleware.js'
 import {logUsage,getUsageStats} from './usage.service.js'
 import prisma from '../../lib/prisma.js'
 
@@ -28,7 +28,7 @@ export async function registerUsageRoutes(fastify, options) {
             })
 
         }catch(error){
-           return reply.status(500).send({ error: err.message })   
+           return reply.status(500).send({ error: error.message })
         }
     })
 

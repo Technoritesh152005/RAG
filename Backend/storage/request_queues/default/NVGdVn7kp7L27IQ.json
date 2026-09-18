@@ -1,0 +1,9 @@
+{
+	"id": "NVGdVn7kp7L27IQ",
+	"json": "{\"id\":\"NVGdVn7kp7L27IQ\",\"url\":\"https://react.dev/learn/tutorial-tic-tac-toe\",\"loadedUrl\":\"https://react.dev/learn/tutorial-tic-tac-toe\",\"uniqueKey\":\"https://react.dev/learn/tutorial-tic-tac-toe\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-09-18T11:54:07.377Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://react.dev/learn/tutorial-tic-tac-toe",
+	"url": "https://react.dev/learn/tutorial-tic-tac-toe"
+}

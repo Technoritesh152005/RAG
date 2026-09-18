@@ -1,0 +1,9 @@
+{
+	"id": "TadkfhLzZ5aX9Pg",
+	"json": "{\"id\":\"TadkfhLzZ5aX9Pg\",\"url\":\"https://react.dev/learn/render-and-commit\",\"loadedUrl\":\"https://react.dev/learn/render-and-commit\",\"uniqueKey\":\"https://react.dev/learn/render-and-commit\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-09-18T11:54:18.303Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://react.dev/learn/render-and-commit",
+	"url": "https://react.dev/learn/render-and-commit"
+}

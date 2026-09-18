@@ -1,0 +1,9 @@
+{
+	"id": "PDAQlhfxgOWkwFq",
+	"json": "{\"id\":\"PDAQlhfxgOWkwFq\",\"url\":\"https://react.dev/learn/understanding-your-ui-as-a-tree\",\"loadedUrl\":\"https://react.dev/learn/understanding-your-ui-as-a-tree\",\"uniqueKey\":\"https://react.dev/learn/understanding-your-ui-as-a-tree\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-09-18T11:54:17.354Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://react.dev/learn/understanding-your-ui-as-a-tree",
+	"url": "https://react.dev/learn/understanding-your-ui-as-a-tree"
+}

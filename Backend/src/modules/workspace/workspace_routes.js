@@ -63,10 +63,10 @@ export async function registerWorkspaceRoute(fastify) {
 
   fastify.delete("/:id", async (request, reply) => {
     try {
-      await deleteWorkspace(request.user.id, request.params.id);
+      await deleteWorkspace(request.params.id, request.user.id);
       return reply.status(200).send({ message: "Workspace Deleted" });
     } catch (error) {
-      return reply.status(404).send({ error: err.message });
+      return reply.status(404).send({ error: error.message });
     }
   });
 
@@ -74,8 +74,8 @@ export async function registerWorkspaceRoute(fastify) {
   fastify.patch("/:id", async (request, reply) => {
     try {
       const workspace = await updateWorkspace(
-        request.params.id,
         request.user.id,
+        request.params.id,
         request.body,
       );
       return reply.send({ workspace });

@@ -15,32 +15,31 @@ export async function upsertChunks(chunks, Embeddings, workspaceId) {
 
     // build pinecone vector objects
     // this creates an array where inside array there r multple objects of vectors with their corresponding chunks metadata
-    const vectors = chunks.map((chunk, i) => {
-        id: chunk.id
-        values: Embeddings[i];
+    const vectors = chunks.map((chunk, i) => ({
+        id: chunk.id,
+        values: Embeddings[i],
         metadata: {
             // identity
-            sourceId: chunk.metadata.sourceId
-            workspaceId: chunk.metadata.workspaceId
+            sourceId: chunk.metadata.sourceId,
+            workspaceId: chunk.metadata.workspaceId,
 
             // location for source citations
-            pageUrl: chunk.metadata.pageUrl
-            pageTitle: chunk.metadata.pageTitle
-            sectionHeading: chunk.metadata.sectionHeading
+            pageUrl: chunk.metadata.pageUrl,
+            pageTitle: chunk.metadata.pageTitle,
+            sectionHeading: chunk.metadata.sectionHeading,
 
             // location of content
             // we usually send parenttext and child text shown in citation ui
-            childText: chunk.metadata.childText
-            parentText: chunk.metadata.parentText
+            childText: chunk.childText,
+            parentText: chunk.parentText,
 
             // position
-            chunkIndex: chunk.metadata.chunkIndex
-            parentIndex: chunk.metadata.parentIndex
-            parentId: chunk.metadata.parentid
+            chunkIndex: chunk.metadata.chunkIndex,
+            parentIndex: chunk.metadata.parentIndex,
+            parentId: chunk.metadata.parentId,
 
         }
-
-    })
+    }))
 
     /* Put all the vectors in a batch of size UPSERT_SIZZE_BATCH */
     // Why does Pinecone need the chunk if it already has the vector?-> cause the vector is just a representation of the chunk, but it doesn't contain the actual content. The chunk is needed for context and to retrieve the original content when needed.
@@ -51,7 +50,7 @@ export async function upsertChunks(chunks, Embeddings, workspaceId) {
         const totalBatches = Math.ceil(vectors.length / UPSERT_INSERT_BATCH)
 
         /* This inserts the given vector in pinecone and also on that particular namespace */
-        await namespace.upsert(totalBatches, batch)
+        await namespace.upsert({ vectors: batch })
         console.log(`Pinecone upsert: batch ${batchNum}/${totalBatches}`)
     }
 
@@ -75,10 +74,10 @@ export async function vectorSearch(questionEmbedding, workspaceId, topK = 10) {
     /* Basically it return array of matches where we have multiple matched objects in it */
     console.log(results)
 
-    if (!results.matches || results.length === 0) return []
+    if (!results.matches || results.matches.length === 0) return []
 
     // this makes array and inside have match objects
-    results.matches.map(match => ({
+    return results.matches.map(match => ({
 
         id: match.id,
         score: match.score, 
@@ -94,6 +93,13 @@ export async function vectorSearch(questionEmbedding, workspaceId, topK = 10) {
 export async function deleteVectors(sourceId, workspaceId) {
     const index = getPineconeIndex()
     const namespace = index.namespace(workspaceId)
+
+    const stats = await index.describeIndexStats()
+    const namespaceStats = stats.namespaces?.[workspaceId]
+    if (!namespaceStats || namespaceStats.vectorCount === 0) {
+        console.log(`Pinecone: no existing vectors to delete for workspace ${workspaceId}`)
+        return
+    }
 
     await namespace.deleteMany({
         filter: { sourceId: { $eq: sourceId } }

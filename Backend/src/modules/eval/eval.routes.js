@@ -6,7 +6,6 @@ import {
   getAllEvalTestCases,
   deleteEvalCase,
   runEvalTestCases,
-  runSingleCase,
   getEvalRuns,
   getEvalRunDetail,
 } from "./eval.service.js";
@@ -17,7 +16,7 @@ const caseSchema = z.object({
   expectedKeyFacts: z.array(z.string()).min(1),
 });
 
-async function verifyWorkspaceOwership(workspaceId, userId) {
+async function verifyWorkspaceOwnership(workspaceId, userId) {
   const workspace = await prisma.workspace.findFirst({
     where: {
       id: workspaceId,
@@ -38,9 +37,9 @@ async function evaluationAccess(request) {
 }
 
 async function requireEvalAccess(request) {
-  evaluationAccess(request);
+  await evaluationAccess(request);
 
-  verifyWorkspaceOwership(request.params.workspaceId, request.user.id);
+  await verifyWorkspaceOwnership(request.params.workspaceId, request.user.id);
 }
 function sendRouteError(reply, error, fallbackStatusCode) {
   return reply
@@ -65,7 +64,7 @@ export async function evalRoutes(fastify) {
   //create evaluationTestCase
   fastify.post("/:workspaceId/eval/cases", async (request, reply) => {
     try {
-      requireEvalAccess(request);
+      await requireEvalAccess(request);
       const body = caseSchema.parse(request.body);
       const createdEvalCases = await putEvalTestCase({
         workspaceId: request.params.workspaceId,
@@ -85,12 +84,12 @@ export async function evalRoutes(fastify) {
     try {
       await requireEvalAccess(request);
 
-      const result = deleteEvalCase(
+      const result = await deleteEvalCase(
         request.params.caseId,
         request.params.workspaceId,
       );
 
-      if (result.length === 0) {
+      if (result.count === 0) {
         return reply
           .status(404)
           .send({ error: "No Test case found for this id to delete" });
@@ -99,7 +98,7 @@ export async function evalRoutes(fastify) {
         message: "Evaluation case deleted",
       });
     } catch (error) {
-      sendRouteError(reply, error, 404);
+      return sendRouteError(reply, error, 404);
     }
   });
 
@@ -115,7 +114,7 @@ export async function evalRoutes(fastify) {
 
       return reply.send({ run });
     } catch (error) {
-      sendRouteError(reply, error, 400);
+      return sendRouteError(reply, error, 400);
     }
   });
 

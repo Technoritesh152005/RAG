@@ -26,7 +26,7 @@ export async function deduplicateChunks(chunks, workspaceId) {
   const existingRecords = await prisma.chunkHash.findMany({
     where: {
       workspaceId,
-      contentHas: { in: batchUniqueHashes },
+      contentHash: { in: batchUniqueHashes },
     },
     select: {
       contentHash: true,
@@ -34,8 +34,30 @@ export async function deduplicateChunks(chunks, workspaceId) {
     },
   });
 
+  const existingChunkIds = await prisma.chunk.findMany({
+    where: {
+      id: { in: existingRecords.map((record) => record.chunkId) },
+    },
+    select: { id: true },
+  });
+  const existingChunkIdSet = new Set(existingChunkIds.map((chunk) => chunk.id));
+  const staleRecordIds = existingRecords
+    .filter((record) => !existingChunkIdSet.has(record.chunkId))
+    .map((record) => record.chunkId);
+
+  if (staleRecordIds.length > 0) {
+    await prisma.chunkHash.deleteMany({
+      where: {
+        workspaceId,
+        chunkId: { in: staleRecordIds },
+      },
+    });
+  }
+
   const existingChunksHashMap = new Map(
-    existingRecords.map((r) => [r.contentHash, r.chunkId]),
+    existingRecords
+      .filter((record) => existingChunkIdSet.has(record.chunkId))
+      .map((record) => [record.contentHash, record.chunkId]),
   );
 
   //now u have unique hash in this batch vs the duplicate hash from this batch which u should not keep in db
@@ -61,21 +83,23 @@ export async function deduplicateChunks(chunks, workspaceId) {
   }
 
   //one buld insert for unique chunks which r not duplicate in batches and also in db
-  if (newHashRecords.length > 0) {
-    await prisma.chunkHash.createMany({
-      data: newHashRecords,
-      skipDuplicates: true,
-    });
-  }
   console.log(
     `Dedup: ${chunks.length} chunks → ${uniqueChunks.length} unique, ` +
       `${duplicateMap.size} duplicates skipped (2 DB queries total)`,
   );
 
-  return { uniqueChunks, duplicateMap };
+  return { uniqueChunks, duplicateMap, newHashRecords };
 }
 
-function generateHash(chunk) {
+export async function persistChunkHashes(records) {
+  for (const record of records) {
+    await prisma.chunkHash.create({
+      data: record,
+    });
+  }
+}
+
+function generateHash(text) {
   return crypto
     .createHash("sha256")
     .update(text.trim().toLowerCase())
