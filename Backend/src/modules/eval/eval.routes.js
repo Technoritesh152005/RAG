@@ -105,7 +105,7 @@ export async function evalRoutes(fastify) {
   //run evaluation testcases
   fastify.post("/:workspaceId/eval/run", async (request, reply) => {
     try {
-      await verifyEvalAccess(request);
+      await requireEvalAccess(request);
 
       const body = request.body || {};
       const label = body.label || "unlabeled";
@@ -121,7 +121,7 @@ export async function evalRoutes(fastify) {
   // Get evaluation run history
   fastify.get("/:workspaceId/eval/runs", async (request, reply) => {
     try {
-      await verifyEvalAccess(request);
+      await requireEvalAccess(request);
 
       const runs = await getEvalRuns(request.params.workspaceId);
 
@@ -134,7 +134,7 @@ export async function evalRoutes(fastify) {
   // Get one evaluation run with detailed results
   fastify.get("/:workspaceId/eval/runs/:runId", async (request, reply) => {
     try {
-      await verifyEvalAccess(request);
+      await requireEvalAccess(request);
 
       const run = await getEvalRunDetail(
         request.params.runId,

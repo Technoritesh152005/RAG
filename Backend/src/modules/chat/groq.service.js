@@ -5,9 +5,9 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-const LLM_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+const LLM_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-20b";
 
-const MAX_TOKENS = 1024;
+const MAX_TOKENS = 512;
 
 //we stream aswer by chunk not send whole nswer once
 export async function streamAnswer({
@@ -62,9 +62,9 @@ export async function streamAnswer({
 //non streaming api calls- means used during faqs generation
 export async function generateTextFAQs(systemPrompt, userPrompt) {
   const response = await groq.chat.completions.create({
-    model: "llama-3.1-8b-instant",
+    model: process.env.GROQ_MODEL || "openai/gpt-oss-20b",
     temperature: 0.3,
-    max_tokens: 700,
+    max_tokens: 400,
     messages: [
       { role: "user", content: userPrompt },
       { role: "system", content: systemPrompt },

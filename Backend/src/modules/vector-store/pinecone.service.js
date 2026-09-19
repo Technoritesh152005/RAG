@@ -50,7 +50,7 @@ export async function upsertChunks(chunks, Embeddings, workspaceId) {
         const totalBatches = Math.ceil(vectors.length / UPSERT_INSERT_BATCH)
 
         /* This inserts the given vector in pinecone and also on that particular namespace */
-        await namespace.upsert({ vectors: batch })
+        await namespace.upsert(batch)
         console.log(`Pinecone upsert: batch ${batchNum}/${totalBatches}`)
     }
 
@@ -102,7 +102,7 @@ export async function deleteVectors(sourceId, workspaceId) {
     }
 
     await namespace.deleteMany({
-        filter: { sourceId: { $eq: sourceId } }
+        sourceId: { $eq: sourceId }
     })
 
     console.log(`Pinecone : deleted vectors for source ${sourceId}`)

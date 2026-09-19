@@ -69,16 +69,30 @@ const io = new Server(httpServer, {
 // socket middleware
 io.use(async (socket, next) => {
   try {
+    if (
+      process.env.NODE_ENV !== "production" &&
+      process.env.LOCAL_AUTH_BYPASS === "true"
+    ) {
+      socket.user = {
+        id: process.env.LOCAL_USER_ID || "local-dev-user",
+        app_metadata: { role: "admin" },
+      };
+
+      return next();
+    }
+
     const token = socket.handshake.auth.token;
-    if (!token) return next(Error("No Token"));
-    const user = await verifyToken(token);
-    socket.user = user;
+
+    if (!token) {
+      return next(new Error("No Token"));
+    }
+
+    socket.user = await verifyToken(token);
     next();
-  } catch (err) {
+  } catch {
     next(new Error("Unauthorized"));
   }
 });
-
 registerChatGateway(io);
 
 // seperate redis client for subscriber

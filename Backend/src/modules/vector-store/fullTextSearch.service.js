@@ -12,37 +12,29 @@ export async function storeChunksForFullTextSearch(chunks) {
     for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
         const batch = chunks.slice(i, i + BATCH_SIZE)
 
-        /* Prisma client provides transaction method where it says if all chunking r upsert in transaction then the transaction is succeed or else if any chunks failed to get upsert in db we rollback the db to its last saved format */
-        await prisma.$transaction(
-            batch.map(chunk =>
-                /* upsert works on this logic: if docs exist it update (update is done when re-index) else it creates the docs */
-                prisma.chunk.upsert({
-                    where: { id: chunk.id },
-
-                    update: {
-                        childText: chunk.childText,
-                        parentText: chunk.parentText,
-                        pageTitle: chunk.metadata.pageTitle,
-                        sectionHeading: chunk.metadata.sectionHeading
-                    },
-
-                    create: {
-                        id: chunk.id,
-                        sourceId: chunk.metadata.sourceId,
-                        workspaceId: chunk.metadata.workspaceId,
-                        pageUrl: chunk.metadata.pageUrl,
-                        pageTitle: chunk.metadata.pageTitle,
-                        sectionHeading: chunk.metadata.sectionHeading,
-                        parentText: chunk.parentText,
-                        childText: chunk.childText,
-                        chunkIndex: chunk.metadata.chunkIndex,
-                        parentIndex: chunk.metadata.parentIndex,
-                    }
-
-
-                })
-            )
-        )
+        for (const chunk of batch) {
+            await prisma.chunk.upsert({
+                where: { id: chunk.id },
+                update: {
+                    childText: chunk.childText,
+                    parentText: chunk.parentText,
+                    pageTitle: chunk.metadata.pageTitle,
+                    sectionHeading: chunk.metadata.sectionHeading
+                },
+                create: {
+                    id: chunk.id,
+                    sourceId: chunk.metadata.sourceId,
+                    workspaceId: chunk.metadata.workspaceId,
+                    pageUrl: chunk.metadata.pageUrl,
+                    pageTitle: chunk.metadata.pageTitle,
+                    sectionHeading: chunk.metadata.sectionHeading,
+                    parentText: chunk.parentText,
+                    childText: chunk.childText,
+                    chunkIndex: chunk.metadata.chunkIndex,
+                    parentIndex: chunk.metadata.parentIndex,
+                }
+            })
+        }
 
     }
 

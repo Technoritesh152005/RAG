@@ -67,7 +67,7 @@ const worker = new Worker(
             })
 
         } catch (error) {
-            console.error(`Ingestion failed for source ${sourceId}:`, error.message)
+            console.error(`Ingestion failed for source ${sourceId}:`, error.stack || error)
 
             // mark as failed with error message
             await updateSourceStatus(sourceId, 'FAILED', {
