@@ -2,8 +2,8 @@ import { embeddingText } from '../Embeeding/embeeding.service.config.js'
 import { vectorSearch } from './pinecone.service.js'
 import { keywordSearch } from './fullTextSearch.service.js'
 
-const RRF_k = 60
-const MIN_CONFIDENCE_SCORE = 0.03
+const RRF_K = 60
+const MIN_CONFIDENCE_SCORE = 0.015
 
 export async function hybridSearch(question, workspaceId, topK = 5) {
 

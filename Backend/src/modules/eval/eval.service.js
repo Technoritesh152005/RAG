@@ -2,7 +2,7 @@ import prisma from "../../lib/prisma.js";
 import { runRAGPipeline } from "../chat/rag.service.js";
 import { generateTextFAQs } from "../chat/groq.service.js";
 
-const EVAL_CONCURRENCY = 3;
+const EVAL_CONCURRENCY = 1;
 //at a time only 3 evals question is sended
 
 //put the test case question and answer in database

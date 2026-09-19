@@ -4,7 +4,7 @@ import { deleteSourceChunks } from "../vector-store/fullTextSearch.service.js";
 import { storeChunksForFullTextSearch } from "../vector-store/fullTextSearch.service.js";
 import {deduplicateChunks, persistChunkHashes} from '../Embeeding/hashChunk.service.js'
 import {logUsage} from '../analytics/usage.service.js'
-const BATCH_SIZE = 100;
+const BATCH_SIZE = 200;
 export async function embedAndStore(chunks, sourceId, workspaceId, onProgress) {
   if (!chunks || chunks.length === 0) {
     console.log("No chunks found for embedding");
@@ -43,12 +43,26 @@ export async function embedAndStore(chunks, sourceId, workspaceId, onProgress) {
       (sum, t) => sum + Math.ceil(t.length / 4), 0
     )
 
-    await Promise.all([
-      upsertChunks(batch, embeddings, workspaceId),
-      storeChunksForFullTextSearch(batch)
-    ]);
+    try {
+      await upsertChunks(batch, embeddings, workspaceId);
+    } catch (error) {
+      console.error('Pinecone batch failed:', error.stack || error);
+      throw error;
+    }
 
-    await persistChunkHashes(newHashRecords.slice(i, i + batch.length));
+    try {
+      await storeChunksForFullTextSearch(batch);
+    } catch (error) {
+      console.error('FTS batch failed:', error.stack || error);
+      throw error;
+    }
+
+    try {
+      await persistChunkHashes(newHashRecords?.slice(i, i + batch.length) || []);
+    } catch (error) {
+      console.error('Chunk hash batch failed:', error.stack || error);
+      throw error;
+    }
 
     totalProcessed += batch.length;
 

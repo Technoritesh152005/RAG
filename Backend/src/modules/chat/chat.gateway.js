@@ -12,7 +12,7 @@ import prisma from "../../lib/prisma.js";
 export async function registerChatGateway(socketInstance) {
   //it listens the event based on this message event and callback function
   socketInstance.on("connection", (socket) => {
-    console.log("Clinet Connected :"`${socket.user.id}`);
+    console.log(`Client connected: ${socket.user.id}`);
 
     //u joined the socket and join the particular room
     socket.on("workspace:join", (workspaceId) => {

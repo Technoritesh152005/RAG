@@ -92,10 +92,17 @@ export async function deduplicateChunks(chunks, workspaceId) {
 }
 
 export async function persistChunkHashes(records) {
+  if (!Array.isArray(records)) {
+    console.error('Chunk hash persistence skipped: expected an array, received', typeof records);
+    return;
+  }
+
   for (const record of records) {
-    await prisma.chunkHash.create({
-      data: record,
-    });
+    try {
+      await prisma.chunkHash.create({ data: record });
+    } catch (error) {
+      if (error.code !== 'P2002') throw error;
+    }
   }
 }
 

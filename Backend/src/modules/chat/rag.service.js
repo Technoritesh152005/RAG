@@ -13,7 +13,7 @@ export async function runRAGPipeline({
 }) {
 
   const startTime = Date.now();
-  console.log("Rag Pipeline started for :"`${question}`);
+  console.log(`RAG pipeline started for: ${question}`);
 
   /* Step 1 : Hybrid search=> search through both vector and keyword postgres based search */
   const { results, confident, reason } = await hybridSearch(
