@@ -32,6 +32,12 @@ export async function deleteEvalCase(caseId, workspaceId) {
   });
 }
 
+export async function deleteAllEvalCases(workspaceId) {
+  return prisma.evalCase.deleteMany({
+    where: { workspaceId },
+  });
+}
+
 // run the eval test cases
 export async function runEvalTestCases(workspaceId, label = "unlabeled") {
   const testCases = await getAllEvalTestCases(workspaceId);
@@ -102,31 +108,47 @@ export async function runEvalTestCases(workspaceId, label = "unlabeled") {
 //run one test case through the rag pipeline
 async function runSingleCase(evalCase, workspaceId) {
   const startTime = Date.now();
+  console.log(`[Latency][Eval] caseStarted caseId=${evalCase.id}`);
 
-  // this says get or return promise only when the question is done running through the rag pipeline means when resolves (onDOne) finishes
   let fullAnswer = "";
   let citations = [];
   let confident = false;
+  const maxAttempts = 2;
 
-  await new Promise((resolve, reject) => {
-    runRAGPipeline({
-      question: evalCase.question,
-      workspaceId,
-      usageType: "EVAL",
-      onMetadata: (metadata) => {
-        citations = metadata.citations || [];
-        confident = metadata.confident;
-      },
-      onToken: (token) => {
-        fullAnswer += token;
-      },
-      //promise becomes completed=>await finishes and returns the full answer and moves to next line
-      onDone: () => resolve(),
-      onError: (err) => reject(err),
-    }).catch(reject);
-  });
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    fullAnswer = "";
+    citations = [];
+    confident = false;
+
+    await new Promise((resolve, reject) => {
+      runRAGPipeline({
+        question: evalCase.question,
+        workspaceId,
+        usageType: "EVAL",
+        onMetadata: (metadata) => {
+          citations = metadata.citations || [];
+          confident = metadata.confident;
+        },
+        onToken: (token) => {
+          fullAnswer += token;
+        },
+        onDone: () => resolve(),
+        onError: (err) => reject(err),
+      }).catch(reject);
+    });
+
+    if (fullAnswer.trim() || citations.length === 0 || attempt === maxAttempts) {
+      break;
+    }
+
+    console.warn(
+      `[Eval] Empty generated answer with ${citations.length} retrieved source(s); retrying ` +
+        `caseId=${evalCase.id} attempt=${attempt + 1}/${maxAttempts}`,
+    );
+  }
 
   const latency = Date.now() - startTime;
+  console.log(`[Latency][Eval] ragPipelineMs=${latency} caseId=${evalCase.id}`);
 
   const retrievedUrl = citations.map((citation) => citation.pageUrl);
 
@@ -144,11 +166,20 @@ async function runSingleCase(evalCase, workspaceId) {
     }
   }
 
-  const { score, reasoning } = await judgeAnswer(
-    evalCase.question,
-    fullAnswer,
-    evalCase.expectedKeyFacts,
-  );
+  const judgeStart = Date.now();
+  const judgeResult = fullAnswer.trim()
+    ? await judgeAnswer(
+        evalCase.question,
+        fullAnswer,
+        evalCase.expectedKeyFacts,
+      )
+    : {
+        score: 0,
+        reasoning: "Generation failed: the answer model returned an empty answer after retry.",
+      };
+  const { score, reasoning } = judgeResult;
+  console.log(`[Latency][Eval] judgeAnswerMs=${Date.now() - judgeStart} caseId=${evalCase.id}`);
+  console.log(`[Latency][Eval] totalCaseMs=${Date.now() - startTime} caseId=${evalCase.id}`);
 
   return {
     caseId: evalCase.id,
@@ -176,10 +207,16 @@ ${expectedKeyFacts.map((f, i) => `${i + 1}. ${f}`).join("\n")}
 The AI's actual answer:
 "${generatedAnswer}"
 
-Score how well the answer covers the expected key facts, from 0.0 to 1.0:
-- 1.0 = all key facts present and accurate
-- 0.5 = some key facts present, some missing or wrong
-- 0.0 = key facts missing, wrong, or answer is a "not found" fallback when facts do exist
+Score how well the answer covers the expected key facts using this rubric:
+- 1.00 = Complete and accurate; all important expected facts are covered correctly
+- 0.75 = Mostly complete and accurate; only minor omissions or imprecision
+- 0.50 = Partially complete; one or more important facts are missing or incorrect
+- 0.25 = Very incomplete; only a small portion of the expected facts is correct
+- 0.00 = Incorrect, irrelevant, contains no expected facts, or is a "not found" fallback when facts exist
+
+Choose the score that best matches the overall completeness and accuracy of the answer.
+Do not default to 0.50 just because the answer is partially correct. Use 0.75 for minor omissions,
+0.50 for important missing facts, and 0.25 when only a small portion is correct.
 
 Respond with ONLY this JSON, nothing else:
 {"score": 0.0, "reasoning": "one sentence explaining the score"}`;
@@ -198,7 +235,7 @@ Respond with ONLY this JSON, nothing else:
   } catch (error) {
     console.error("Judge scoring failed:", error.message);
     return {
-      score: 0,
+      score: null,
       reasoning: "Judge parsing failed — treated as failing score",
     };
   }

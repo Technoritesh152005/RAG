@@ -5,6 +5,7 @@ import {
   putEvalTestCase,
   getAllEvalTestCases,
   deleteEvalCase,
+  deleteAllEvalCases,
   runEvalTestCases,
   getEvalRuns,
   getEvalRunDetail,
@@ -96,6 +97,22 @@ export async function evalRoutes(fastify) {
       }
       return reply.send({
         message: "Evaluation case deleted",
+      });
+    } catch (error) {
+      return sendRouteError(reply, error, 404);
+    }
+  });
+
+  //delete all evaluation test cases for a workspace
+  fastify.delete("/:workspaceId/eval/cases", async (request, reply) => {
+    try {
+      await requireEvalAccess(request);
+
+      const result = await deleteAllEvalCases(request.params.workspaceId);
+
+      return reply.send({
+        message: "All evaluation cases deleted",
+        deletedCount: result.count,
       });
     } catch (error) {
       return sendRouteError(reply, error, 404);

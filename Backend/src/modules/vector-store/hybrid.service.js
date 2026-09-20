@@ -5,21 +5,28 @@ import { keywordSearch } from './fullTextSearch.service.js'
 const RRF_K = 60
 const MIN_CONFIDENCE_SCORE = 0.015
 
-export async function hybridSearch(question, workspaceId, topK = 5) {
+export async function hybridSearch(question, workspaceId, topK = 5, precomputedEmbedding = null) {
 
+    const searchStart = Date.now()
     console.log(`Hybrid Search : "${question}" in workspace ${workspaceId}`)
 
-    const questionEmbedding = await embeddingText(question)
+    //during cache check only we do embedding of question. so no need to generate embedding here also
+    const questionEmbedding = precomputedEmbedding || await embeddingText(question)
+    console.log(`[Latency][Hybrid Search] embeddingMs=${Date.now() - searchStart}`)
 
     // once both r completed to run then only op comes together... Both works parallely
+    const retrievalStart = Date.now()
     const [vectorResults = [], keywordResults = []] = await Promise.all([
         vectorSearch(questionEmbedding, workspaceId, topK * 2),
         keywordSearch(question, workspaceId, topK * 2)
     ])
 
+    console.log(`[Latency][Hybrid Search] vectorAndKeywordSearchMs=${Date.now() - retrievalStart}`)
     console.log(`Vector results: ${vectorResults.length}, Keyword results: ${keywordResults.length}`)
 
+    const fusionStart = Date.now()
     if (vectorResults.length == 0 && keywordResults.length == 0) {
+        console.log(`[Latency][Hybrid Search] fusionMs=${Date.now() - fusionStart}, totalMs=${Date.now() - searchStart}`)
         return {
             results: [],
             confident: false,
@@ -28,6 +35,7 @@ export async function hybridSearch(question, workspaceId, topK = 5) {
     }
 
     const merged = reciprocalRankFusion(vectorResults, keywordResults, topK)
+    console.log(`[Latency][Hybrid Search] fusionMs=${Date.now() - fusionStart}, totalMs=${Date.now() - searchStart}`)
 
     console.log(merged)
     const topScore = merged[0]?.score
