@@ -5,6 +5,7 @@ import { embedAndStore } from "../modules/jobs/ingestion.job.js";
 import { updateSourceStatus } from "../modules/sources/source.service.js";
 import { crawlSource } from "../modules/crawler/crawler.service.js";
 import prisma from "../lib/prisma.js";
+import {deleteWorkspaceCache} from '../modules/cache/semantic-cache.service.js'
 
 //loads env var in nodejs process
 dotenv.config();
@@ -62,6 +63,8 @@ const worker = new Worker(
         );
     
         /* Phase 3: Update source status and DONE */
+
+        await deleteWorkspaceCache(workspaceId)
         await updateSourceStatus(sourceId,"DONE", {
             pageCount,
             chunkCount ,

@@ -1,7 +1,8 @@
 import { hybridSearch } from "../vector-store/hybrid.service.js";
 import { generateTextFAQs, streamAnswer } from "../chat/groq.service.js";
-import {logUsage,estimateTokens} from '../analytics/usage.service.js'
-
+import { logUsage, estimateTokens } from "../analytics/usage.service.js";
+import { embedTexts } from "../Embeeding/embeeding.service.config.js";
+import { lookUpCache, storeInCache } from "../cache/semantic-cache.service.js";
 export async function runRAGPipeline({
   question,
   workspaceId,
@@ -9,20 +10,62 @@ export async function runRAGPipeline({
   onDone,
   onError,
   onMetadata,
-  usageType = 'CHAT'
+  usageType = "CHAT",
+  skipCache = false,
 }) {
-
   const startTime = Date.now();
   console.log(`RAG pipeline started for: ${question}`);
 
+  const questionEmbedding = await embedTexts([question]);
+
+  //semantic caching lookup=>u check whether for this question already we generated answer for it or not?
+  if (!skipCache) {
+    const cached = await lookUpCache(questionEmbedding, workspaceId);
+    if (cached.hit) {
+      onMetadata({
+        citations: cached.citations,
+        contradiction: cached.contradiction,
+        confident: true,
+        reason: null,
+        cached: true,
+        cacheSimilarity: parseFloat(cached.similarity.toFixed(4)),
+      });
+
+      onToken(cached.answer);
+      onDone(cached.answer);
+      // log the hit — zero LLM tokens consumed, that's the whole point
+      await logUsage({
+        workspaceId,
+        type: usageType,
+        embeddingTokens: estimateTokens(question),
+        llmInputTokens: 0,
+        llmOutputTokens: 0,
+        latencyMs: Date.now() - startTime,
+        metadata: {
+          cacheHit: true,
+          cacheSimilarity: cached.similarity,
+          originalQuestion: cached.originalQuestion,
+        },
+      });
+
+      console.log(`Served from cache in ${Date.now() - startTime}ms`);
+      return;
+    }
+  }
+
+  //from here cache miss occurs
+
   /* Step 1 : Hybrid search=> search through both vector and keyword postgres based search */
+  const retrievalStart = Date.now();
   const { results, confident, reason } = await hybridSearch(
     question,
     workspaceId,
   );
+  console.log(`[Latency][RAG] hybridSearchMs=${Date.now() - retrievalStart}`);
 
   /* Generating fallback answer */
   if (!confident || results.length == 0) {
+    const fallbackStart = Date.now();
     const fallbackAnswer = buildFallbackAnswer(results);
 
     //citation means the source of data means ur answer came that is okay but show me source
@@ -31,11 +74,15 @@ export async function runRAGPipeline({
       hasContradiction: false,
       confident: false,
       reason,
+      cached:false
     });
 
     onToken(fallbackAnswer);
     onDone(fallbackAnswer);
- // log even fallback responses — still a real request
+    console.log(
+      `[Latency][RAG] fallbackBuildMs=${Date.now() - fallbackStart}, totalMs=${Date.now() - startTime}`,
+    );
+    // log even fallback responses — still a real request
     await logUsage({
       workspaceId,
       type: usageType,
@@ -43,15 +90,19 @@ export async function runRAGPipeline({
       llmInputTokens: 0,
       llmOutputTokens: estimateTokens(fallbackAnswer),
       latencyMs: Date.now() - startTime,
-      metadata: { confident: false, question }
-    })
+      metadata: { confident: false, question },
+    });
     return;
   }
 
   /* Step 3: CONTRADICTION DETECTION */
   /* After hybrid search gives you the top 5 chunks, check whether any of those chunks from different sources appear to make opposing claims.if they do we ask llm to generalize it */
 
+  const contradictionStart = Date.now();
   const contradiction = await detectContradiction(question, results);
+  console.log(
+    `[Latency][RAG] contradictionDetectionMs=${Date.now() - contradictionStart}`,
+  );
 
   if (contradiction) {
     console.log("Contradiction found");
@@ -68,11 +119,13 @@ export async function runRAGPipeline({
   }
 
   //step 5 : Build Prompt
+  const promptStart = Date.now();
   const { systemPrompt, userPrompt } = buildPrompt({
     question,
     results,
     contradiction,
   });
+  console.log(`[Latency][RAG] promptBuildMs=${Date.now() - promptStart}`);
 
   onMetadata({
     citations: results,
@@ -80,18 +133,31 @@ export async function runRAGPipeline({
     contradictions: contradiction ? [contradiction] : [],
     confident: true,
     reason: null,
+    cached:true
   });
 
   /* Step 6 : get the response(STREAM ANSWER) */
   console.log("Streaming answer from GROQ");
+  const answerStart = Date.now();
 
   await streamAnswer({
     systemPrompt,
     userPrompt,
     onToken,
-    onDone:async(complete)=>{
+    onDone: async (complete) => {
 
-       await logUsage({
+      //after getting response store the response in cache=> but ony skipcache = false
+      if(!skipCache){
+        await storeInCache({
+                    question,
+                    questionEmbedding,
+                    workspaceId,
+                    answer: completeAnswer,
+                    citations,
+                    contradiction
+        })
+      }
+      await logUsage({
         workspaceId,
         type: usageType,
         embeddingTokens: estimateTokens(question),
@@ -100,11 +166,15 @@ export async function runRAGPipeline({
         latencyMs: Date.now() - startTime,
         metadata: {
           confident: true,
+          cacheHit: false,
           hasContradiction: !!contradiction,
-          chunksUsed: results.length
-        }
-      })
-      onDone(complete)
+          chunksUsed: results.length,
+        },
+      });
+      console.log(
+        `[Latency][RAG] answerStreamingMs=${Date.now() - answerStart}, totalMs=${Date.now() - startTime}`,
+      );
+      onDone(complete);
     },
     onError,
   });
@@ -335,7 +405,7 @@ verify which version/context applies.
   }
 
   //if not contradiction no need for contradiction prompt
- const systemPrompt = `You are a precise documentation assistant.
+  const systemPrompt = `You are a precise documentation assistant.
 Your job is to answer questions using ONLY the provided documentation context.
 
 Rules you must follow:
@@ -355,7 +425,7 @@ ABSENCE HANDLING — this is critical:
    Absence of a mention is not evidence of absence OR presence — say so plainly.
 9. Only confirm "yes it supports X" or "no it does not" when the context contains
    an explicit statement to that effect.
-${contradictionInstruction}`
+${contradictionInstruction}`;
 
   const userPrompt = `
 Documentation Context:
