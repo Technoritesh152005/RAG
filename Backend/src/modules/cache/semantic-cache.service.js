@@ -2,6 +2,7 @@ import crypto from "crypto";
 import redis from "../../lib/redis.js";
 
 const CACHE_TTL = 60 * 60 * 24;
+const CACHE_TTL_SECONDS = CACHE_TTL;
 
 const SIMILARITY_THRESHOLD = 0.9;
 
@@ -56,13 +57,13 @@ export async function lookUpCache(questionEmbedding, workspaceId) {
     //in memory scan
     let bestIds = null;
     let bestScore = 0;
-    for (const entry of entryIds) {
-      const cachedVector = decodeVectors(entry);
+    for (const entryId of entryIds) {
+      const cachedVector = decodeVectors(cacheVectors[entryId]);
       const similarity = cosineSimilarity(questionEmbedding, cachedVector);
 
       if (similarity > bestScore) {
         bestScore = similarity;
-        bestIds = entry;
+        bestIds = entryId;
       }
     }
 
@@ -90,7 +91,7 @@ export async function lookUpCache(questionEmbedding, workspaceId) {
     //when the size of cache per workspace gets full use lru technique which removes least recently used cache entry
     redis.zadd(lruKey(workspaceId), Date.now(), bestIds).catch(() => {});
 
-    const latencyMs = Date.now() - startTime;
+    const latencyMs = Date.now() - start;
     console.log(
       `Cache HIT (similarity: ${bestScore.toFixed(4)}, ` +
         `${entryIds.length} entries scanned, ${latencyMs}ms)`,
@@ -103,7 +104,7 @@ export async function lookUpCache(questionEmbedding, workspaceId) {
       answer: entry.answer,
       lookupLatencyMs: latencyMs,
       citations: entry.citations,
-      contradiction: entry.contradiction,
+      contradiction: entry.contradictions,
       originalQuestion: entry.question,
     };
   } catch (Error) {

@@ -8,6 +8,7 @@ import {
 import z from "zod";
 import { authenticateMiddleware } from "../auth/auth_middleware.js";
 import { workspaceStats } from "./workspace_service.js";
+import { deleteWorkspaceCache } from "../cache/semantic-cache.service.js";
 // zod is a validation library
 
 const createSchema = z.object({
@@ -35,8 +36,8 @@ export async function registerWorkspaceRoute(fastify) {
   fastify.get("/:id", async (request, reply) => {
     try {
       const workspace = await getWorkspaceById(
-        request.user.id,
         request.params.id,
+        request.user.id,
       );
       if (!workspace) {
         return reply.send({ error: "Not able to fetch user workspace" });
@@ -67,6 +68,23 @@ export async function registerWorkspaceRoute(fastify) {
       return reply.status(200).send({ message: "Workspace Deleted" });
     } catch (error) {
       return reply.status(404).send({ error: error.message });
+    }
+  });
+
+  fastify.delete("/:id/cache", async (request, reply) => {
+    try {
+      const workspace = await getWorkspaceById(
+        request.user.id,
+        request.params.id,
+      );
+      if (!workspace) {
+        return reply.status(404).send({ error: "Workspace Not Found" });
+      }
+
+      await deleteWorkspaceCache(request.params.id);
+      return reply.send({ message: "Workspace cache deleted" });
+    } catch (error) {
+      return reply.status(500).send({ error: error.message });
     }
   });
 
