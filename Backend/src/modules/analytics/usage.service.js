@@ -96,3 +96,42 @@ export function estimateTokens(text) {
   if (!text) return 0
   return Math.ceil(text.length / 4)
 }
+
+function average(values) {
+  return values.reduce((total, value) => total + value, 0) / values.length
+}
+
+// add to getUsageStats — reads the cacheHit flag we log on every request
+export async function getCacheStats(workspaceId) {
+  const logs = await prisma.usageLog.findMany({
+    where: { workspaceId, type: 'CHAT' }
+  })
+
+  const cacheHits = logs.filter(l => l.metadata?.cacheHit === true)
+  const cacheMisses = logs.filter(l => l.metadata?.cacheHit === false)
+
+  const avgHitLatency = cacheHits.length
+    ? Math.round(average(cacheHits.map(l => l.latencyMs).filter(Boolean)))
+    : null
+
+  const avgMissLatency = cacheMisses.length
+    ? Math.round(average(cacheMisses.map(l => l.latencyMs).filter(Boolean)))
+    : null
+
+  // ... existing totals calculation stays as-is ...
+
+  return {
+    // ... existing fields ...
+    cache: {
+      hits: cacheHits.length,
+      misses: cacheMisses.length,
+      hitRate: logs.length ? parseFloat((cacheHits.length / logs.length).toFixed(4)) : 0,
+      avgHitLatencyMs: avgHitLatency,
+      avgMissLatencyMs: avgMissLatency,
+      latencyReductionPct: (avgHitLatency && avgMissLatency)
+        ? parseFloat((((avgMissLatency - avgHitLatency) / avgMissLatency) * 100).toFixed(1))
+        : null,
+      llmCallsSaved: cacheHits.length
+    }
+  }
+}

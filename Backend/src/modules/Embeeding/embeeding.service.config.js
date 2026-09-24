@@ -16,7 +16,7 @@ function getExtractor() {
   return extractorPromise
 }
 
-async function embedTexts(texts) {
+export async function embedTexts(texts) {
   const extractor = await getExtractor()
   const embeddings = []
 

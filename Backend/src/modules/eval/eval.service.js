@@ -125,6 +125,7 @@ async function runSingleCase(evalCase, workspaceId) {
         question: evalCase.question,
         workspaceId,
         usageType: "EVAL",
+        skipCache:true,
         onMetadata: (metadata) => {
           citations = metadata.citations || [];
           confident = metadata.confident;

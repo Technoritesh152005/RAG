@@ -16,7 +16,7 @@ export async function runRAGPipeline({
   const startTime = Date.now();
   console.log(`RAG pipeline started for: ${question}`);
 
-  const questionEmbedding = await embedTexts([question]);
+  const [questionEmbedding] = await embedTexts([question]);
 
   //semantic caching lookup=>u check whether for this question already we generated answer for it or not?
   if (!skipCache) {
@@ -74,7 +74,7 @@ export async function runRAGPipeline({
       hasContradiction: false,
       confident: false,
       reason,
-      cached:false
+      cached: false
     });
 
     onToken(fallbackAnswer);
@@ -152,9 +152,9 @@ export async function runRAGPipeline({
                     question,
                     questionEmbedding,
                     workspaceId,
-                    answer: completeAnswer,
-                    citations,
-                    contradiction
+                    answer: complete,
+                    citations: results,
+                    contradictions: contradiction
         })
       }
       await logUsage({

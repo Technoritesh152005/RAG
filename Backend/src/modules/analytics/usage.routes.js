@@ -1,7 +1,7 @@
 import {authenticateMiddleware} from '../auth/auth_middleware.js'
 import {logUsage,getUsageStats} from './usage.service.js'
 import prisma from '../../lib/prisma.js'
-
+import {getCacheStats} from './usage.service.js'
 export async function registerUsageRoutes(fastify, options) {
     fastify.addHook('preHandler', authenticateMiddleware)
 
@@ -32,5 +32,17 @@ export async function registerUsageRoutes(fastify, options) {
         }
     })
 
+    fastify.get('/:workspaceId/getCacheStats', async(request,reply)=>{
+
+        try{
+            const workspaceId = request.params.workspaceId
+            return getCacheStats(workspaceId)
+
+        }catch(error){
+            console.error(error)
+        }
+    })
+
+    
     
 }
