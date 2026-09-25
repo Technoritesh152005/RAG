@@ -107,6 +107,8 @@ export async function registerChatGateway(socketInstance) {
                 contradictions: metadata.contradictions,
                 confident: metadata.confident,
                 reason: metadata.reason,
+                cached: metadata.cached,
+                cacheSimilarity: metadata.cacheSimilarity,
               });
           },
 

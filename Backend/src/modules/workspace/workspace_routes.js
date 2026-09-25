@@ -74,8 +74,8 @@ export async function registerWorkspaceRoute(fastify) {
   fastify.delete("/:id/cache", async (request, reply) => {
     try {
       const workspace = await getWorkspaceById(
-        request.user.id,
         request.params.id,
+        request.user.id,
       );
       if (!workspace) {
         return reply.status(404).send({ error: "Workspace Not Found" });
