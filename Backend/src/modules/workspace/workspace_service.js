@@ -24,7 +24,7 @@ export function getWorkspace(userId){
 
 export async function getWorkspaceById (id , userId){
     // return first matching record
-    const workspace = prisma.workspace.findFirst({
+    const workspace = await prisma.workspace.findFirst({
         where:{id, userId},
         include:{sources:true}
 

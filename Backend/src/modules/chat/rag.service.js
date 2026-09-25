@@ -24,7 +24,8 @@ export async function runRAGPipeline({
     if (cached.hit) {
       onMetadata({
         citations: cached.citations,
-        contradiction: cached.contradiction,
+        hasContradiction: Boolean(cached.contradiction),
+        contradictions: cached.contradiction ? [cached.contradiction] : [],
         confident: true,
         reason: null,
         cached: true,
@@ -133,7 +134,7 @@ export async function runRAGPipeline({
     contradictions: contradiction ? [contradiction] : [],
     confident: true,
     reason: null,
-    cached:true
+    cached: false,
   });
 
   /* Step 6 : get the response(STREAM ANSWER) */

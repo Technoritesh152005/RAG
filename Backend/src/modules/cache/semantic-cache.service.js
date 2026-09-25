@@ -164,9 +164,9 @@ async function deleteCacheEntryIfNeeded(workspaceId){
     const count = await redis.zcard(lruKey(workspaceId))
     if(count <= MAX_ENTRIES_PER_WORKSPACE)return 
 
-    const xcessCount = MAX_ENTRIES_PER_WORKSPACE- xcessCount
+    const excessCount = count - MAX_ENTRIES_PER_WORKSPACE
 
-   const leastUsedEntryIds =  await redis.zrange(lruKey(workspaceId), 0, excess-1)
+     const leastUsedEntryIds =  await redis.zrange(lruKey(workspaceId), 0, excessCount - 1)
    if(leastUsedEntryIds.length === 0)return 
 
    console.log(`The entry which needs to be removed when size exceeds looks like this: ${leastUsedEntryIds}`)
@@ -176,7 +176,7 @@ async function deleteCacheEntryIfNeeded(workspaceId){
   pipeline.zrem(lruKey(workspaceId), ...leastUsedEntryIds)
   await pipeline.exec()
 
-  console.log(`Cache: evicted ${toEvict.length} LRU entries for workspace ${workspaceId}`)
+  console.log(`Cache: evicted ${leastUsedEntryIds.length} LRU entries for workspace ${workspaceId}`)
 }
 
 //when user does reindexing means docs is changes delete all the cache of that old docs
