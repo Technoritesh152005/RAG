@@ -16,6 +16,7 @@ import {
   listWorkspaces,
   updateWorkspace,
 } from "../api/workspace.api";
+import {sourcesPanel} from '../features/sources/SourcePanel'
 
 import { queryKeys } from "../api/queryKeys";
 import { useWorkspaceStore } from "../stores/workspace.store";
