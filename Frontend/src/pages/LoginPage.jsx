@@ -3,10 +3,10 @@ import { useAuth } from "../auth/authProvider";
 import "./LoginPage.css";
 
 
-export default function LoginPage() {
+export default function LoginPage({ initialMode = "login", onHome }) {
   const { signIn, signUp } = useAuth();
 
-  const [mode, setMode] = useState("login");
+  const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -65,6 +65,15 @@ export default function LoginPage() {
 
         <section className="auth-form-panel" aria-labelledby="auth-title">
           <div className="auth-form-wrap">
+            {onHome && (
+              <button
+                className="auth-home-link"
+                type="button"
+                onClick={onHome}
+              >
+                Back to home
+              </button>
+            )}
             <p className="auth-eyebrow auth-eyebrow-dark">
               {mode === "login" ? "YOUR WORKSPACE AWAITS" : "GET STARTED"}
             </p>
