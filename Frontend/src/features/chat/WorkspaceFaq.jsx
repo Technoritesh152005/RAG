@@ -5,6 +5,7 @@ import {
   getWorkspaceFAQs,
 } from "../../api/faq.api";
 import { queryKeys } from "../../api/queryKeys";
+import { MutationFeedback, QueryFeedback } from "../../components/asyncFeedback";
 
 export default function WorkspaceFAQs({ workspaceId }) {
   const queryClient = useQueryClient();
@@ -59,28 +60,22 @@ export default function WorkspaceFAQs({ workspaceId }) {
 
       {notice && <p role="status">{notice}</p>}
 
-      {generateMutation.isError && (
-        <p role="alert">{generateMutation.error.message}</p>
-      )}
+      <MutationFeedback
+        mutation={generateMutation}
+        pendingMessage="Starting FAQ generation..."
+        successMessage={notice || "FAQ generation started in the background."}
+      />
 
-      {faqsQuery.isLoading ? (
-        <p>Loading FAQs...</p>
-      ) : faqsQuery.isError ? (
+      <QueryFeedback
+        isLoading={faqsQuery.isLoading}
+        error={faqsQuery.error}
+        onRetry={() => faqsQuery.refetch()}
+        isEmpty={faqsQuery.data?.length === 0}
+        emptyMessage="No FAQs yet. They’re generated automatically after every 10 workspace questions. You can also generate them manually after at least 5 questions."
+        hasData={faqsQuery.data !== undefined}
+      >
         <div>
-          <p role="alert">Unable to load FAQs: {faqsQuery.error.message}</p>
-          <button type="button" onClick={() => faqsQuery.refetch()}>
-            Try again
-          </button>
-        </div>
-      ) : faqsQuery.data.length === 0 ? (
-        <p>
-          No FAQs yet. They’re generated automatically after every 10
-          workspace questions. You can also generate them manually after at
-          least 5 questions.
-        </p>
-      ) : (
-        <div>
-          {faqsQuery.data.map((faq) => (
+          {(faqsQuery.data ?? []).map((faq) => (
             <details key={faq.id}>
               <summary>{faq.question}</summary>
               <p>{faq.answer}</p>
@@ -90,7 +85,7 @@ export default function WorkspaceFAQs({ workspaceId }) {
             </details>
           ))}
         </div>
-      )}
+      </QueryFeedback>
     </section>
   );
 }

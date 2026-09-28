@@ -18,6 +18,8 @@ export const queryKeys = {
   usage: (workspaceId) => ["usage", workspaceId],
   cacheStats: (workspaceId) => ["cache-stats", workspaceId],
 
+  faqs: (workspaceId) => ["faqs", workspaceId],
+
   evaluationCases: (workspaceId) => [
   "evaluation-cases",
   workspaceId,
@@ -34,7 +36,7 @@ evaluationRun: (workspaceId, runId) => [
   runId,
 ],
 
-faqs: (workspaceId) => ["faqs", workspaceId],
+
 };
 
 //query keys are keys which cache the data for react query infront of these keys

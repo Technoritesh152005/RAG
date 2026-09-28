@@ -14,8 +14,6 @@ export async function authenticateMiddleware(request , reply){
 
         //we extract the authorization header from the request to verify the token
         const authReqHeader =  request.headers.authorization
-        console.log(request.headers)
-        console.log(request.headers.authorization)
         if(!authReqHeader || !authReqHeader.startsWith('Bearer')){
             return reply.status(400).send({error:"Token is not provided"})
         }

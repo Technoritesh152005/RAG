@@ -1,41 +1,42 @@
 import prisma from '../../lib/prisma.js'
+import { Prisma } from '@prisma/client'
 
 // we use hybrid search method where we have 2 experts who returns the proper chunk
 // Expert 1 : vector search : which calculate best cosine similarity from all vectors
 // expert 2 : Postgres vector: here it matches threr keyword stored in postgres so that even keyworkd based searcher works
 
-export async function storeChunksForFullTextSearch(chunks) {
+export async function storeChunksForFullTextSearch(chunks, client = prisma) {
     console.log(`Stroing ${chunks.length} of chunks in prisma for Full Text Search`)
 
-    const BATCH_SIZE = 50
+    const BATCH_SIZE = 200
 
     for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
         const batch = chunks.slice(i, i + BATCH_SIZE)
+        const values = batch.map((chunk) => Prisma.sql`(
+            ${chunk.id},
+            ${chunk.metadata.sourceId},
+            ${chunk.metadata.workspaceId},
+            ${chunk.metadata.pageUrl},
+            ${chunk.metadata.pageTitle},
+            ${chunk.metadata.sectionHeading},
+            ${chunk.parentText},
+            ${chunk.childText},
+            ${chunk.metadata.chunkIndex},
+            ${chunk.metadata.parentIndex}
+        )`)
 
-        for (const chunk of batch) {
-            await prisma.chunk.upsert({
-                where: { id: chunk.id },
-                update: {
-                    childText: chunk.childText,
-                    parentText: chunk.parentText,
-                    pageTitle: chunk.metadata.pageTitle,
-                    sectionHeading: chunk.metadata.sectionHeading
-                },
-                create: {
-                    id: chunk.id,
-                    sourceId: chunk.metadata.sourceId,
-                    workspaceId: chunk.metadata.workspaceId,
-                    pageUrl: chunk.metadata.pageUrl,
-                    pageTitle: chunk.metadata.pageTitle,
-                    sectionHeading: chunk.metadata.sectionHeading,
-                    parentText: chunk.parentText,
-                    childText: chunk.childText,
-                    chunkIndex: chunk.metadata.chunkIndex,
-                    parentIndex: chunk.metadata.parentIndex,
-                }
-            })
-        }
-
+        await client.$executeRaw(Prisma.sql`
+            INSERT INTO "Chunk" (
+                "id", "sourceId", "workspaceId", "pageUrl", "pageTitle",
+                "sectionHeading", "parentText", "childText", "chunkIndex", "parentIndex"
+            )
+            VALUES ${Prisma.join(values)}
+            ON CONFLICT ("id") DO UPDATE SET
+                "childText" = EXCLUDED."childText",
+                "parentText" = EXCLUDED."parentText",
+                "pageTitle" = EXCLUDED."pageTitle",
+                "sectionHeading" = EXCLUDED."sectionHeading"
+        `)
     }
 
     console.log(`FTS: stored all chunks in Postgres`)

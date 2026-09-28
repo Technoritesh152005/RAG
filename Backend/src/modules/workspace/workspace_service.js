@@ -4,7 +4,7 @@ import { cleanupWorkspace } from './cleanup.service.js'
 export  async function createWorkspace({name,userId , description}){
 
     return prisma.workspace.create({
-        data: {name,description,userId}
+        data: {name,description: description ?? "",userId}
     })
 }
 
@@ -69,7 +69,7 @@ export async function workspaceStats(workspaceId, userId){
 
     if(!workspace){throw new Error('No workspace found to show its stats')}
 
-    const {sources, chunkCount, messageCount, faqCount} = await Promise.all([
+    const [sources, chunkCount, messageCount, faqCount] = await Promise.all([
         prisma.source.findMany({
             where:{
                 workspaceId

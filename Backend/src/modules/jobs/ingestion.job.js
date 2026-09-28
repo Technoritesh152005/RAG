@@ -1,3 +1,5 @@
+import { performance } from 'node:perf_hooks'
+import prisma from '../../lib/prisma.js'
 import { embeddingBatches } from "../Embeeding/embeeding.service.config.js";
 import { upsertChunks, deleteVectors } from "../vector-store/pinecone.service.js";
 import { deleteSourceChunks } from "../vector-store/fullTextSearch.service.js";
@@ -30,43 +32,62 @@ export async function embedAndStore(chunks, sourceId, workspaceId, onProgress) {
 
   let totalProcessed = 0;
   let totalEmbeddingTokensEstimate = 0;
+  const totalBatches = Math.ceil(uniqueChunks.length / BATCH_SIZE);
   for (let i = 0; i < uniqueChunks.length; i += BATCH_SIZE) {
     const batch = uniqueChunks.slice(i, i + BATCH_SIZE);
+    const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
 
     // Embed only the current batch so each embedding stays aligned with its chunk.
     const texts = batch.map((chunk) => chunk.childText);
 
+    const embeddingStartedAt = performance.now();
     const embeddings = await embeddingBatches(texts);
+    const embeddingMs = performance.now() - embeddingStartedAt;
 
     // rough token estimate — 1 token ≈ 4 characters
     totalEmbeddingTokensEstimate += texts.reduce(
       (sum, t) => sum + Math.ceil(t.length / 4), 0
     )
 
-    try {
-      await upsertChunks(batch, embeddings, workspaceId);
-    } catch (error) {
-      console.error('Pinecone batch failed:', error.stack || error);
-      throw error;
-    }
+    const hashBatch = newHashRecords?.slice(i, i + batch.length) || [];
+    const storageStartedAt = performance.now();
+    const [pineconeResult, postgresResult] = await Promise.allSettled([
+      (async () => {
+        const startedAt = performance.now();
+        await upsertChunks(batch, embeddings, workspaceId);
+        return performance.now() - startedAt;
+      })(),
+      (async () => {
+        const startedAt = performance.now();
+        await prisma.$transaction(async (tx) => {
+          await storeChunksForFullTextSearch(batch, tx);
+          await persistChunkHashes(hashBatch, tx);
+        });
+        return performance.now() - startedAt;
+      })(),
+    ]);
+    const storageMs = performance.now() - storageStartedAt;
 
-    try {
-      await storeChunksForFullTextSearch(batch);
-    } catch (error) {
-      console.error('FTS batch failed:', error.stack || error);
-      throw error;
+    if (pineconeResult.status === 'rejected') {
+      console.error('Pinecone batch failed:', pineconeResult.reason.stack || pineconeResult.reason);
+      throw pineconeResult.reason;
     }
-
-    try {
-      await persistChunkHashes(newHashRecords?.slice(i, i + batch.length) || []);
-    } catch (error) {
-      console.error('Chunk hash batch failed:', error.stack || error);
-      throw error;
+    if (postgresResult.status === 'rejected') {
+      console.error('Postgres batch failed:', postgresResult.reason.stack || postgresResult.reason);
+      throw postgresResult.reason;
     }
 
     totalProcessed += batch.length;
 
-    console.log(`Processed and stored ${totalProcessed}/${uniqueChunks.length} chunks`);
+    console.log(
+      `[Ingestion] Source ${sourceId}: batch ${batchNumber}/${totalBatches} ` +
+      `embedded and stored ${batch.length} chunks ` +
+      `(${totalProcessed}/${uniqueChunks.length} total); ` +
+      `embedding=${embeddingMs.toFixed(0)}ms, ` +
+      `Pinecone=${pineconeResult.value.toFixed(0)}ms, ` +
+      `Postgres=${postgresResult.value.toFixed(0)}ms, ` +
+      `parallel storage=${storageMs.toFixed(0)}ms`
+    );
 
     if (onProgress) {
       await onProgress({

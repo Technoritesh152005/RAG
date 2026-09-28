@@ -17,10 +17,15 @@ import {
   updateWorkspace,
 } from "../api/workspace.api";
 import SourcePanel from "../features/sources/SourcePanel";
+import ChatPanel from "../features/chat/ChatPanel";
+import WorkspaceFAQs from "../features/chat/WorkspaceFaq";
+import WorkspaceAnalytics from "../features/analytics/WorkspaceAnalytics";
+import { QueryFeedback, MutationFeedback } from "../components/asyncFeedback";
 
 import { queryKeys } from "../api/queryKeys";
 import { useWorkspaceStore } from "../stores/workspace.store";
 import { useAuth } from "../auth/authProvider";
+import "./WorkspacePage.css";
 
 export default function WorkspacePage() {
 
@@ -138,12 +143,12 @@ export default function WorkspacePage() {
   });
 
   if (workspacesQuery.isLoading) {
-    return <main>Loading workspaces...</main>;
+    return <main className="workspace-page workspace-state">Loading workspaces...</main>;
   }
 
   if (workspacesQuery.isError) {
     return (
-      <main>
+      <main className="workspace-page workspace-state">
         <h1>Unable to load workspaces</h1>
         <p>{workspacesQuery.error.message}</p>
         <button
@@ -201,7 +206,7 @@ export default function WorkspacePage() {
 
   if (workspaces.length === 0) {
     return (
-      <main>
+      <main className="workspace-page">
         <header>
           <h1>RAG Workspace</h1>
           <button type="button" onClick={signOut}>
@@ -238,7 +243,7 @@ export default function WorkspacePage() {
   }
 
   return (
-    <main>
+    <main className="workspace-page">
       <header>
         <div>
           <h1>RAG Workspace</h1>
@@ -394,17 +399,55 @@ export default function WorkspacePage() {
         </section>
       )}
 
-      {statsQuery.isLoading ? (
-        <p>Loading workspace statistics...</p>
-      ) : statsQuery.isError ? (
-        <p>{statsQuery.error.message}</p>
-      ) : (
+      <QueryFeedback
+        isLoading={statsQuery.isLoading}
+        error={statsQuery.error}
+        onRetry={() => statsQuery.refetch()}
+        isEmpty={!statsQuery.data}
+        emptyMessage="Workspace statistics are not available yet."
+        hasData={Boolean(statsQuery.data)}
+      >
         <WorkspaceStats stats={statsQuery.data} />
-      )}
+      </QueryFeedback>
 
       {selectedWorkspaceId && (
         <SourcePanel workspaceId={selectedWorkspaceId} />
       )}
+
+      {selectedWorkspaceId && (
+        <ChatPanel
+          key={selectedWorkspaceId}
+          workspaceId={selectedWorkspaceId}
+        />
+      )}
+
+      {selectedWorkspaceId && (
+        <WorkspaceFAQs workspaceId={selectedWorkspaceId} />
+      )}
+
+      {selectedWorkspaceId && (
+        <WorkspaceAnalytics workspaceId={selectedWorkspaceId} />
+      )}
+
+      <MutationFeedback
+        mutation={createMutation}
+        pendingMessage="Creating workspace..."
+        successMessage="Workspace created."
+      />
+      <MutationFeedback
+        mutation={updateMutation}
+        pendingMessage="Saving workspace changes..."
+        successMessage="Workspace updated."
+      />
+      <MutationFeedback
+        mutation={deleteMutation}
+        pendingMessage="Deleting workspace and its data..."
+      />
+      <MutationFeedback
+        mutation={clearCacheMutation}
+        pendingMessage="Clearing semantic cache..."
+        successMessage="Workspace semantic cache cleared."
+      />
     </main>
   );
 }
