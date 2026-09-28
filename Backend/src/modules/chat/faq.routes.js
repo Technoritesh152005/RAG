@@ -1,36 +1,60 @@
-import {authenticateMiddleware} from '../auth/auth_middleware.js'
-import {getFAQs, generateFAQ} from '../chat/faq.service.js'
+import { authenticateMiddleware } from "../auth/auth_middleware.js";
+import { getFAQs, generateFAQ } from "./faq.service.js";
+import { getMessageCount } from "./chat.service.js";
+import prisma from "../../lib/prisma.js";
 
-export async function faqRoutes(fastify){
+export async function faqRoutes(fastify) {
+  fastify.addHook("preHandler", authenticateMiddleware);
 
-    fastify.addHook('preHandler', authenticateMiddleware)
+  fastify.get("/:workspaceId/faqs", async (request, reply) => {
+    try {
+      const faqs = await getFAQs(
+        request.params.workspaceId,
+        request.user.id,
+      );
 
-    //get all faqs of a workspace
-    fastify.get('/:workspaceId/faqs', async(request,reply)=>{
-        const workspaceId = request.params.workspaceId
-        if(!workspaceId)return reply.code(404).send(
-            {error:'Please provide the workspaceId'}
-        )
-        try{
-            const faqs = await getFAQs(workspaceId,request.user.id)
-            return reply.send({faqs})
-        }catch(error){
-            return reply.status(404).send({ error: error.message })
-        }
-    })
+      return reply.send({ faqs });
+    } catch (error) {
+      return reply.status(404).send({ error: error.message });
+    }
+  });
 
-    //post manually faqs trigger
-    fastify.post('/:workspaceId/faqs/generate', async(request,reply)=>{
+  //ypur faq works only when u have atleast 5 msg and automatically geenrates faqs when the count of question gets 10
+  fastify.post("/:workspaceId/faqs/generate", async (request, reply) => {
+    const { workspaceId } = request.params;
 
-        try{
-             generateFAQ(request.params.workspaceId).catch((err)=>{
-                console.error(`Error occured while truggering the faqs: ${err.message}`)
-             })
-              return reply.send({
-            message: 'FAQ generation started in background'
-            })
-        }catch(error){
-            return reply.status(400).send({ error: error.message })
-        }
-    })
+    try {
+      const workspace = await prisma.workspace.findUnique({
+        where: {
+          id: workspaceId,
+          userId: request.user.id,
+        },
+      });
+
+      if (!workspace) {
+        return reply.status(404).send({ error: "Workspace Not Found" });
+      }
+
+      const questionCount = await getMessageCount(workspaceId);
+
+      if (questionCount < 5) {
+        return reply.status(400).send({
+          error: "Ask at least 5 questions before generating FAQs.",
+        });
+      }
+
+      generateFAQ(workspaceId).catch((error) => {
+        request.log.error(error, "FAQ generation failed");
+      });
+
+      return reply.code(202).send({
+        message: "FAQ generation started in the background",
+      });
+    } catch (error) {
+      request.log.error(error, "Unable to start FAQ generation");
+      return reply.status(500).send({
+        error: "Unable to start FAQ generation",
+      });
+    }
+  });
 }

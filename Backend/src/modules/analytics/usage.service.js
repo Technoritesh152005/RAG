@@ -1,11 +1,5 @@
 import prisma from "../../lib/prisma.js";
 
-const PRICING = {
-  embeddingPerMillion: 0, // Gemini free tier
-  llmInputPerMillion: 0, // Groq free tier
-  llmOutputPerMillion: 0,
-};
-
 export async function logUsage({
   workspaceId,
   type,
@@ -15,7 +9,6 @@ export async function logUsage({
   latencyMs = null,
   metadata = null,
 }) {
-
   try {
     await prisma.usageLog.create({
       data: {
@@ -28,110 +21,110 @@ export async function logUsage({
         metadata,
       },
     });
-  } catch (err) {
-    // never let logging failure break the actual pipeline
-    console.error("Usage logging failed:", err.message);
+  } catch (error) {
+    console.error("Usage logging failed:", error.message);
   }
-  
 }
 
-//shows all stats for that particular workspace
-export async function getUsageStats(workspaceId){
+export async function getUsageStats(workspaceId) {
+  // General user analytics include chat, not evaluation runs.
+  const logs = await prisma.usageLog.findMany({
+    where: {
+      workspaceId,
+      type: "CHAT",
+    },
+  });
 
-    const logs = await prisma.usageLog.findMany({
-        where:{
-            workspaceId
-        }
-    })
+  const totals = logs.reduce(
+    (result, log) => {
+      result.embeddingTokens += log.embeddingTokens;
+      result.llmInputTokens += log.llmInputTokens;
+      result.llmOutputTokens += log.llmOutputTokens;
 
-    const totals = logs.reduce((acc,log)=>{
-        acc.embeddingTokens += log.embeddingTokens
-        acc.llmInputTokens += log.llmInputTokens
-        acc.llmOutputTokens += log.llmOutputTokens
-        acc.requestCount += 1
-        if(log.latencyMs){
-            acc.latencies.push(log.latencyMs)
-        }
-        return acc
-    } , {
-         embeddingTokens: 0,
-        llmInputTokens: 0,
-        llmOutputTokens: 0,
-        requestCount: 0,
-        latencies: []
-    }
-    )
+      if (Number.isFinite(log.latencyMs)) {
+        result.latencies.push(log.latencyMs);
+      }
 
-     const avgLatency = totals.latencies.length
-    ? Math.round(totals.latencies.reduce((a, b) => a + b, 0) / totals.latencies.length)
-    : null
-
-  const p95Latency = totals.latencies.length
-    ? percentile(totals.latencies, 95)
-    : null
-
-  const estimatedCost =
-    (totals.embeddingTokens / 1_000_000) * PRICING.embeddingPerMillion +
-    (totals.llmInputTokens / 1_000_000) * PRICING.llmInputPerMillion +
-    (totals.llmOutputTokens / 1_000_000) * PRICING.llmOutputPerMillion
+      return result;
+    },
+    {
+      embeddingTokens: 0,
+      llmInputTokens: 0,
+      llmOutputTokens: 0,
+      latencies: [],
+    },
+  );
 
   return {
-    totalRequests: totals.requestCount,
+    totalRequests: logs.length,
     totalEmbeddingTokens: totals.embeddingTokens,
     totalLLMInputTokens: totals.llmInputTokens,
     totalLLMOutputTokens: totals.llmOutputTokens,
-    avgLatencyMs: avgLatency,
-    p95LatencyMs: p95Latency,
-    estimatedCostUSD: parseFloat(estimatedCost.toFixed(6))
-  }
+    avgLatencyMs: average(totals.latencies),
+    p95LatencyMs: percentile(totals.latencies, 95),
+  };
 }
 
-function percentile(arr, p) {
-  const sorted = [...arr].sort((a, b) => a - b)
-  const index = Math.ceil((p / 100) * sorted.length) - 1
-  return sorted[Math.max(0, index)]
+export async function getCacheStats(workspaceId) {
+  const logs = await prisma.usageLog.findMany({
+    where: {
+      workspaceId,
+      type: "CHAT",
+    },
+  });
 
-}
-export function estimateTokens(text) {
-  if (!text) return 0
-  return Math.ceil(text.length / 4)
+  // Ignore older/unclassified logs so they don't distort the hit rate.
+  const measuredLogs = logs.filter(
+    (log) => typeof log.metadata?.cacheHit === "boolean",
+  );
+
+  const hits = measuredLogs.filter((log) => log.metadata.cacheHit);
+  const misses = measuredLogs.filter((log) => !log.metadata.cacheHit);
+
+  const hitLatency = average(
+    hits.map((log) => log.latencyMs).filter(Number.isFinite),
+  );
+  const missLatency = average(
+    misses.map((log) => log.latencyMs).filter(Number.isFinite),
+  );
+
+  return {
+    cache: {
+      hits: hits.length,
+      misses: misses.length,
+      measuredRequests: measuredLogs.length,
+      hitRate: measuredLogs.length
+        ? Number((hits.length / measuredLogs.length).toFixed(4))
+        : 0,
+      avgHitLatencyMs: hitLatency,
+      avgMissLatencyMs: missLatency,
+      latencyReductionPct:
+        hitLatency !== null && missLatency > 0
+          ? Number((((missLatency - hitLatency) / missLatency) * 100).toFixed(1))
+          : null,
+      llmCallsSaved: hits.length,
+    },
+  };
 }
 
 function average(values) {
-  return values.reduce((total, value) => total + value, 0) / values.length
+  if (values.length === 0) return null;
+
+  return Math.round(
+    values.reduce((total, value) => total + value, 0) / values.length,
+  );
 }
 
-// add to getUsageStats — reads the cacheHit flag we log on every request
-export async function getCacheStats(workspaceId) {
-  const logs = await prisma.usageLog.findMany({
-    where: { workspaceId, type: 'CHAT' }
-  })
+function percentile(values, percent) {
+  if (values.length === 0) return null;
 
-  const cacheHits = logs.filter(l => l.metadata?.cacheHit === true)
-  const cacheMisses = logs.filter(l => l.metadata?.cacheHit === false)
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = Math.ceil((percent / 100) * sorted.length) - 1;
 
-  const avgHitLatency = cacheHits.length
-    ? Math.round(average(cacheHits.map(l => l.latencyMs).filter(Boolean)))
-    : null
+  return sorted[Math.max(0, index)];
+}
 
-  const avgMissLatency = cacheMisses.length
-    ? Math.round(average(cacheMisses.map(l => l.latencyMs).filter(Boolean)))
-    : null
-
-  // ... existing totals calculation stays as-is ...
-
-  return {
-    // ... existing fields ...
-    cache: {
-      hits: cacheHits.length,
-      misses: cacheMisses.length,
-      hitRate: logs.length ? parseFloat((cacheHits.length / logs.length).toFixed(4)) : 0,
-      avgHitLatencyMs: avgHitLatency,
-      avgMissLatencyMs: avgMissLatency,
-      latencyReductionPct: (avgHitLatency && avgMissLatency)
-        ? parseFloat((((avgMissLatency - avgHitLatency) / avgMissLatency) * 100).toFixed(1))
-        : null,
-      llmCallsSaved: cacheHits.length
-    }
-  }
+export function estimateTokens(text) {
+  if (!text) return 0;
+  return Math.ceil(text.length / 4);
 }

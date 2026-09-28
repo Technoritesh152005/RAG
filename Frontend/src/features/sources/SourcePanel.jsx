@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "../api/queryKeys";
+import { queryKeys } from "../../api/queryKeys";
 import {
   addSource,
   deleteSource,
@@ -9,7 +9,7 @@ import {
 } from "../../api/source.api";
 import { useSourceStatus } from "../../realtime/useSourceStatus";
 
-export default function sourcesPanel(workspaceId) {
+export default function SourcePanel({ workspaceId }) {
   const queryClient = useQueryClient();
   const { connected } = useSourceStatus(workspaceId);
   console.log(
@@ -18,14 +18,14 @@ export default function sourcesPanel(workspaceId) {
 
   const [url, setUrl] = useState("");
 
-  const sourceQuery = useQuery({
+  const sourcesQuery = useQuery({
     queryKey: queryKeys.sources(workspaceId),
     queryFn: () => listSources(workspaceId),
     enabled: Boolean(workspaceId),
   });
 
   const addSourceMutation = useMutation({
-    mutationFn: (url) => addSource( url),
+    mutationFn: (url) => addSource(workspaceId, url),
     onSuccess: async () => {
       setUrl("");
       await queryClient.invalidateQueries({
@@ -147,11 +147,11 @@ export default function sourcesPanel(workspaceId) {
           type="submit"
           disabled={addMutation.isPending}
         >
-          {addMutation.isPending ? "Adding..." : "Add source"}
+          {addSourceMutation.isPending ? "Adding..." : "Add source"}
         </button>
 
-        {addMutation.isError && (
-          <p role="alert">{addMutation.error.message}</p>
+        {addSourceMutation.isError && (
+          <p role="alert">{addSourceMutation.error.message}</p>
         )}
       </form>
 
@@ -187,17 +187,17 @@ export default function sourcesPanel(workspaceId) {
                 <button
                   type="button"
                   onClick={() =>
-                    reindexMutation.mutate(source.id)
+                    reindexSourceMutation.mutate(source.id)
                   }
                   disabled={
-                    reindexMutation.isPending ||
+                    reindexSourceMutation.isPending ||
                     source.status === "PENDING" ||
                     source.status === "SCRAPING" ||
                     source.status === "EMBEDDING"
                   }
                 >
-                  {reindexMutation.isPending &&
-                  reindexMutation.variables === source.id
+                  {reindexSourceMutation.isPending &&
+                  reindexSourceMutation.variables === source.id
                     ? "Queueing..."
                     : "Reindex"}
                 </button>
@@ -205,7 +205,7 @@ export default function sourcesPanel(workspaceId) {
                 <button
                   type="button"
                   onClick={() => handleDelete(source.id)}
-                  disabled={deleteMutation.isPending}
+                  disabled={deleteSourceMutation.isPending}
                 >
                   Delete
                 </button>
@@ -215,12 +215,12 @@ export default function sourcesPanel(workspaceId) {
         </ul>
       )}
 
-      {reindexMutation.isError && (
-        <p role="alert">{reindexMutation.error.message}</p>
+      {reindexSourceMutation.isError && (
+        <p role="alert">{reindexSourceMutation.error.message}</p>
       )}
 
-      {deleteMutation.isError && (
-        <p role="alert">{deleteMutation.error.message}</p>
+      {deleteSourceMutation.isError && (
+        <p role="alert">{deleteSourceMutation.error.message}</p>
       )}
     </section>
   );
