@@ -1,4 +1,4 @@
-import httpClient from "./httpClient";
+import httpClient from "./backendConnection";
 
 export async function listWorkspaces() {
   const response = await httpClient.get("/api/workspace");

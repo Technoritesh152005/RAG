@@ -16,11 +16,11 @@ import {
   listWorkspaces,
   updateWorkspace,
 } from "../api/workspace.api";
-import {sourcesPanel} from '../features/sources/SourcePanel'
+import SourcePanel from "../features/sources/SourcePanel";
 
 import { queryKeys } from "../api/queryKeys";
 import { useWorkspaceStore } from "../stores/workspace.store";
-import { useAuth } from "../auth/AuthProvider";
+import { useAuth } from "../auth/authProvider";
 
 export default function WorkspacePage() {
 
@@ -400,6 +400,10 @@ export default function WorkspacePage() {
         <p>{statsQuery.error.message}</p>
       ) : (
         <WorkspaceStats stats={statsQuery.data} />
+      )}
+
+      {selectedWorkspaceId && (
+        <SourcePanel workspaceId={selectedWorkspaceId} />
       )}
     </main>
   );

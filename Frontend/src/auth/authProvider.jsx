@@ -1,23 +1,30 @@
-import { supabaseClient } from "./auth.js";
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import { supabaseClient } from "./auth";
 
-const authContext = createContext(null);
+const AuthContext = createContext(null);
 
-export function authProvider({ children }) {
+export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  //this runs when authcontext provider gets mounted 
   useEffect(() => {
-    let mounted = false;
+    let mounted = true;
 
-    async function loadSession() {
-      const {
-        data: { session },
-        error,
-      } = await supabaseClient.auth.getSession;
+    //wheneevr the auth state change this trigger the event and makes a call to callback function
+    const {
+      data: { subscription },
+    } = supabaseClient.auth.onAuthStateChange((_event, nextSession) => {
+      if (!mounted) return;
 
-      //session means all the necessary details of authenticated user
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+      setLoading(false);
+    });
+
+    //it return the register authentication state or session in this browser
+    supabaseClient.auth.getSession().then(({ data, error }) => {
       if (!mounted) return;
 
       if (error) {
@@ -25,36 +32,26 @@ export function authProvider({ children }) {
         setSession(null);
         setUser(null);
       } else {
-        setSession(session);
-        setUser(session?.user ?? null);
+        setSession(data.session);
+        setUser(data.session?.user ?? null);
       }
-      setLoading(false)
 
-    }
+      setLoading(false);
+    });
 
-    loadSession()
-
-    //wheever auth related event occurs call this callback function
-    const {} =  supabaseClient.auth.onAuthStateChange((_event,nextSession)=>{
-        if(!mounted)return 
-        setSession(nextSession)
-        setUser(nextSession?.user??null)
-        setLoading(false)
-    })
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
   }, []);
 
-   async function signIn(email, password) {
+  async function signIn(email, password) {
     const { data, error } = await supabaseClient.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) throw error;
-
     return data;
   }
 
@@ -65,7 +62,6 @@ export function authProvider({ children }) {
     });
 
     if (error) throw error;
-
     return data;
   }
 
@@ -78,9 +74,8 @@ export function authProvider({ children }) {
     setUser(null);
   }
 
-
   return (
-    <authContext.Provider
+    <AuthContext.Provider
       value={{
         session,
         user,
@@ -92,10 +87,9 @@ export function authProvider({ children }) {
       }}
     >
       {children}
-    </authContext.Provider>
+    </AuthContext.Provider>
   );
 }
-
 
 export function useAuth() {
   const context = useContext(AuthContext);
