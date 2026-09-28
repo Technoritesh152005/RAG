@@ -25,4 +25,5 @@ export async function authenticateMiddleware(request , reply){
     }catch(error){
         return reply.status(401).send({error:"Error occured during authenticating from middleware"})
     }
+    
 }
