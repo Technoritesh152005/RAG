@@ -13,7 +13,10 @@ const httpClient = axios.create({
 //before running any backend fxn run this fxn
 httpClient.interceptors.request.use(async(config)=>{
 
-    console.log(`This is the configuration during intercepor of request in http client:${config}`)
+    console.debug("Preparing backend request", {
+      method: config.method,
+      url: config.url,
+    });
     const {data:{session}}= await supabaseClient.auth.getSession()
 
     if(session?.access_token){

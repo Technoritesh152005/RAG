@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useAuth } from '../auth/authProvider'
+import { useAuth } from "../auth/authProvider";
+import "./LoginPage.css";
 
 
 export default function LoginPage() {
@@ -39,57 +40,100 @@ export default function LoginPage() {
   }
 
   return (
-    <main>
-      <section>
-        <h1>{mode === "login" ? "Welcome back" : "Create your account"}</h1>
+    <main className="auth-page">
+      <div className="auth-layout">
+        <section className="auth-intro" aria-label="RAG Workspace">
+          <a className="auth-brand" href="/" aria-label="RAG Workspace home">
+            <span className="auth-brand-mark" aria-hidden="true">R</span>
+            <span>RAG / WORKSPACE</span>
+          </a>
 
-        <form onSubmit={handleSubmit}>
-          <label>
-            Email
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-            />
-          </label>
+          <div className="auth-intro-copy">
+            <p className="auth-eyebrow">YOUR KNOWLEDGE, IN CONTEXT</p>
+            <h1>Ask your documents better questions.</h1>
+            <p className="auth-intro-description">
+              Bring documentation into one workspace, then find answers
+              grounded in the sources you trust.
+            </p>
+          </div>
 
-          <label>
-            Password
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              minLength={6}
-              required
-            />
-          </label>
+          <p className="auth-signal">
+            <span className="auth-signal-line" aria-hidden="true" />
+            Private workspace · Source-backed answers
+          </p>
+        </section>
 
-          {error && <p role="alert">{error}</p>}
-          {message && <p role="status">{message}</p>}
+        <section className="auth-form-panel" aria-labelledby="auth-title">
+          <div className="auth-form-wrap">
+            <p className="auth-eyebrow auth-eyebrow-dark">
+              {mode === "login" ? "YOUR WORKSPACE AWAITS" : "GET STARTED"}
+            </p>
+            <h2 id="auth-title">
+              {mode === "login" ? "Welcome back" : "Create your account"}
+            </h2>
+            <p className="auth-form-description">
+              {mode === "login"
+                ? "Sign in to continue to your documentation workspace."
+                : "Create an account to start building your workspace."}
+            </p>
 
-          <button type="submit" disabled={submitting}>
-            {submitting
-              ? "Please wait..."
-              : mode === "login"
-                ? "Sign in"
-                : "Create account"}
-          </button>
-        </form>
+            <form className="auth-form" onSubmit={handleSubmit}>
+              <label htmlFor="auth-email">Email address</label>
+              <input
+                id="auth-email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                required
+              />
 
-        <button
-          type="button"
-          onClick={() => {
-            setMode(mode === "login" ? "signup" : "login");
-            setError("");
-            setMessage("");
-          }}
-        >
-          {mode === "login"
-            ? "Create a new account"
-            : "I already have an account"}
-        </button>
-      </section>
+              <label htmlFor="auth-password">Password</label>
+              <input
+                id="auth-password"
+                type="password"
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                minLength={6}
+                placeholder="At least 6 characters"
+                required
+              />
+
+              {error && <p className="auth-feedback auth-error" role="alert">{error}</p>}
+              {message && <p className="auth-feedback auth-message" role="status">{message}</p>}
+
+              <button className="auth-submit" type="submit" disabled={submitting}>
+                {submitting
+                  ? "Please wait..."
+                  : mode === "login"
+                    ? "Sign in"
+                    : "Create account"}
+                {!submitting && <span aria-hidden="true">→</span>}
+              </button>
+            </form>
+
+            <p className="auth-switch">
+              {mode === "login" ? "New to this workspace?" : "Already have an account?"}{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setMode(mode === "login" ? "signup" : "login");
+                  setError("");
+                  setMessage("");
+                }}
+              >
+                {mode === "login" ? "Create account" : "Sign in"}
+              </button>
+            </p>
+
+            <p className="auth-security-note">
+              Authentication is securely handled by Supabase.
+            </p>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

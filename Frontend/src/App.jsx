@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider, useAuth } from "./auth/AuthProvider.jsx"
+import { AuthProvider, useAuth } from "./auth/authProvider.jsx";
 import LoginPage from "./pages/LoginPage";
 import WorkspacePage from "./pages/WorkspacePage";
+import { WorkspaceSocketProvider } from "./realtime/WorkspaceSocketProvider";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,7 +25,11 @@ function ApplicationContent() {
     return <LoginPage />;
   }
 
-  return <WorkspacePage />;
+  return (
+    <WorkspaceSocketProvider>
+      <WorkspacePage />
+    </WorkspaceSocketProvider>
+  );
 }
 
 export default function App() {

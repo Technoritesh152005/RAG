@@ -8,15 +8,14 @@ import {
   reindexSource,
 } from "../../api/source.api";
 import { useSourceStatus } from "../../realtime/useSourceStatus";
+import { MutationFeedback, QueryFeedback } from "../../components/asyncFeedback";
 
 export default function SourcePanel({ workspaceId }) {
   const queryClient = useQueryClient();
   const { connected } = useSourceStatus(workspaceId);
-  console.log(
-    `Im in source panel and this connected looks like this${connected}`,
-  );
 
   const [url, setUrl] = useState("");
+  const [formError, setFormError] = useState("");
 
   const sourcesQuery = useQuery({
     queryKey: queryKeys.sources(workspaceId),
@@ -60,6 +59,7 @@ export default function SourcePanel({ workspaceId }) {
 
   async function handleAddSource(event){
     event.preventDefault();
+    setFormError("");
 
     const trimmed = url.trim()
     try{
@@ -80,10 +80,10 @@ export default function SourcePanel({ workspaceId }) {
         if(error instanceof TypeError){
             //reset means reset this mutation to its initial data
             addSourceMutation.reset()
-            window.alert("Invalid URL. Please enter a valid URL.");
+          setFormError(error.message || "Enter a valid URL.");
             return 
         }
-        console.error(error, 'Got this error at during adding source In workspace')
+        setFormError(error.message || "Could not add this source.");
     }
   }
   function handleDelete(sourceId){
@@ -94,25 +94,6 @@ export default function SourcePanel({ workspaceId }) {
   }
   if (!workspaceId) {
     return <section>Select a workspace to manage its sources.</section>;
-  }
-
-  if (sourcesQuery.isLoading) {
-    return <section>Loading sources...</section>;
-  }
-
-  if (sourcesQuery.isError) {
-    return (
-      <section>
-        <h2>Unable to load sources</h2>
-        <p>{sourcesQuery.error.message}</p>
-        <button
-          type="button"
-          onClick={() => sourcesQuery.refetch()}
-        >
-          Try again
-        </button>
-      </section>
-    );
   }
 
   const sources = sourcesQuery.data ?? [];
@@ -145,19 +126,27 @@ export default function SourcePanel({ workspaceId }) {
 
         <button
           type="submit"
-          disabled={addMutation.isPending}
+          disabled={addSourceMutation.isPending}
         >
           {addSourceMutation.isPending ? "Adding..." : "Add source"}
         </button>
 
-        {addSourceMutation.isError && (
-          <p role="alert">{addSourceMutation.error.message}</p>
-        )}
+        {formError && <p role="alert">{formError}</p>}
+        <MutationFeedback
+          mutation={addSourceMutation}
+          pendingMessage="Adding source to the indexing queue..."
+          successMessage="Source added and queued for indexing."
+        />
       </form>
 
-      {sources.length === 0 ? (
-        <p>No sources yet. Add a documentation URL to begin.</p>
-      ) : (
+      <QueryFeedback
+        isLoading={sourcesQuery.isLoading}
+        error={sourcesQuery.error}
+        onRetry={() => sourcesQuery.refetch()}
+        isEmpty={sources.length === 0}
+        emptyMessage="No sources yet. Add a documentation URL to begin."
+        hasData={sourcesQuery.data !== undefined}
+      >
         <ul>
           {sources.map((source) => (
             <li key={source.id}>
@@ -213,15 +202,18 @@ export default function SourcePanel({ workspaceId }) {
             </li>
           ))}
         </ul>
-      )}
+      </QueryFeedback>
 
-      {reindexSourceMutation.isError && (
-        <p role="alert">{reindexSourceMutation.error.message}</p>
-      )}
-
-      {deleteSourceMutation.isError && (
-        <p role="alert">{deleteSourceMutation.error.message}</p>
-      )}
+      <MutationFeedback
+        mutation={reindexSourceMutation}
+        pendingMessage="Reindexing source..."
+        successMessage="Source reindex queued."
+      />
+      <MutationFeedback
+        mutation={deleteSourceMutation}
+        pendingMessage="Deleting source and indexed data..."
+        successMessage="Source deleted."
+      />
     </section>
   );
 }

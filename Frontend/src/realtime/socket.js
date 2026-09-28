@@ -11,17 +11,13 @@ export function getSocket(){
             autoConnect:false,
 
             //weh socket.connect is then before it only socket object client is created , but after that u get auth related data
-            auth:async()=>{
-                supabaseClient.auth.getSession().then(({data})=>{
-                    callback({
-                        token:data.session?.access_token
-                    })
-                    .catch(()=>{
-                        callback({
-                            token:undefined
-                        })
-                    })
-                })
+            auth: async (callback) => {
+                try {
+                    const { data } = await supabaseClient.auth.getSession();
+                    callback({ token: data.session?.access_token });
+                } catch {
+                    callback({ token: undefined });
+                }
             }
         })
     }

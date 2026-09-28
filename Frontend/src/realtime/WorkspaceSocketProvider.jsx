@@ -4,8 +4,8 @@ import { useWorkspaceStore } from "../stores/workspace.store";
 
 const socketContext = createContext(null);
 //create context for socket so that we can use it in any component without passing it as props
-export function workspaceSocketProvider({ children }) {
-  const workspaceId = useWorkspaceStore((state) => state.workspaceId);
+export function WorkspaceSocketProvider({ children }) {
+  const workspaceId = useWorkspaceStore((state) => state.selectedWorkspaceId);
   const workspaceIdRef = useRef(workspaceId);
   const [connected, setConnected] = useState(false);
 
@@ -25,6 +25,7 @@ export function workspaceSocketProvider({ children }) {
     }
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
+    socket.connect();
 
     return () => {
       socket.off("connect", handleConnect);
@@ -51,11 +52,7 @@ export function workspaceSocketProvider({ children }) {
     }
   }, [workspaceId]);
 
-  return (
-    <socketContext.Provider value = {connected}>
-        {children}
-    </socketContext.Provider>
-  )
+  return <socketContext.Provider value={connected}>{children}</socketContext.Provider>;
 }
 
 

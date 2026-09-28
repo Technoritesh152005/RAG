@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef } from "react";
-import { getSocket } from "./socket";
-import { useSocketConnected } from "./WorkspaceSocketProvider";
+import { getSocket } from "../../realtime/socket";
+import { useSocketConnected } from "../../realtime/WorkspaceSocketProvider";
 
-export function chatPanel({ workspaceId }) {
+export default function ChatPanel({ workspaceId }) {
   const connected = useSocketConnected();
   const [messages, setMessages] = useState([]);
   const [question, setQuestion] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState("");
   const assistantId = useRef(null);
+  const messagesEndRef = useRef(null);
 
   //run this useffect when the workspace id changes
 
@@ -16,6 +17,12 @@ export function chatPanel({ workspaceId }) {
   //
   useEffect(() => {
     if (!workspaceId) return;
+
+    setMessages([]);
+    setStreaming(false);
+    setError("");
+    assistantId.current = null;
+
     const socket = getSocket();
 
     function loadHistory() {
@@ -121,7 +128,7 @@ export function chatPanel({ workspaceId }) {
 
     //these are all the events which frontend listens and handles
     socket.on('connect', loadHistory)
-    socket.on('chat:history:load', loadHistory);
+    socket.on('chat:history:load', handleHistory);
     socket.on('chat:start',handleStart)
     socket.on("chat:metadata", handleMetadata);
     socket.on("chat:token", handleToken);
@@ -141,6 +148,10 @@ export function chatPanel({ workspaceId }) {
       socket.off("chat:error", handleError);
     };
   }, [workspaceId]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   function sendQuestion(event){
     event.preventDefault()
@@ -175,7 +186,7 @@ export function chatPanel({ workspaceId }) {
     setQuestion("")
 
     //start it
-    socket.emit('chat:message', {
+    getSocket().emit('chat:message', {
         question:trimmedQuestion,
         workspaceId
     })
@@ -187,16 +198,20 @@ export function chatPanel({ workspaceId }) {
     }
 
     //backend listens this event to whole workspace chat
-    socket.emit('chat:clear', {workspaceId})
+    getSocket().emit('chat:clear', {workspaceId})
     setMessages([])
     setError('')
   }
 
   return (
-    <section>
-      <header>
-        <h2>Chat</h2>
-        <span>{connected ? "Connected" : "Connecting..."}</span>
+    <section className="chat-panel" aria-labelledby="workspace-chat-title">
+      <header className="chat-panel__header">
+        <div>
+          <h2 id="workspace-chat-title">Workspace chat</h2>
+          <p>Ask questions about indexed sources in this workspace.</p>
+        </div>
+        <div className="chat-panel__actions">
+          <span role="status">{connected ? "Connected" : "Connecting..."}</span>
         <button
           type="button"
           onClick={clearChat}
@@ -204,18 +219,29 @@ export function chatPanel({ workspaceId }) {
         >
           Clear chat
         </button>
+        </div>
       </header>
 
-      <div aria-live="polite">
+      <div
+        className="chat-panel__messages"
+        aria-live="polite"
+        aria-busy={streaming}
+      >
+        {messages.length === 0 && (
+          <p className="chat-panel__empty">No messages yet.</p>
+        )}
         {messages.map((message) => (
-          <article key={message.id}>
-            <h3>
+          <article
+            key={message.id}
+            className={`chat-message chat-message--${message.role.toLowerCase()}`}
+          >
+            <h3 className="chat-message__role">
               {message.role === "USER" ? "You" : "Assistant"}
               {message.cached && " · Cached"}
               {message.streaming && " · Generating"}
             </h3>
 
-            <p>{message.content || (message.streaming ? "…" : "")}</p>
+            <p>{message.content || (message.streaming ? "Generating answer..." : "")}</p>
 
             {message.cacheSimilarity != null && (
               <p>
@@ -253,17 +279,19 @@ export function chatPanel({ workspaceId }) {
             )}
           </article>
         ))}
+        <div ref={messagesEndRef} />
       </div>
 
       {error && <p role="alert">{error}</p>}
 
-      <form onSubmit={sendQuestion}>
+      <form className="chat-panel__form" onSubmit={sendQuestion}>
         <label htmlFor="chat-question">Ask a question</label>
         <textarea
           id="chat-question"
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
           disabled={!connected || streaming}
+          placeholder="Ask about your indexed sources..."
           required
         />
         <button

@@ -19,6 +19,10 @@ import redis from './lib/redis.js'
 dotenv.config();
 
 const app = Fastify({ logger: true });
+const frontendOrigin =
+  process.env.FRONTEND_VITE_URL ||
+  process.env.FRONTEND_URL ||
+  "http://localhost:5173";
 
 app.register(faqRoutes, { prefix: "/api/workspaces" });
 
@@ -46,7 +50,7 @@ await app.register(rateLimit, {
 });
 
 await app.register(cors, {
-  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  origin: frontendOrigin,
   credentials: true,
 });
 
@@ -61,7 +65,7 @@ const httpServer = app.server;
 
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: frontendOrigin,
     credentials: true,
   },
 });
