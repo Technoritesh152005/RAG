@@ -6,6 +6,7 @@ import { updateSourceStatus } from "../modules/sources/source.service.js";
 import { crawlSource } from "../modules/crawler/crawler.service.js";
 import prisma from "../lib/prisma.js";
 import {deleteWorkspaceCache} from '../modules/cache/semantic-cache.service.js'
+import "./source-cleanup.worker.js";
 
 //loads env var in nodejs process
 dotenv.config();

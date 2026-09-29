@@ -5,6 +5,7 @@ import { updateSourceStatus } from '../modules/sources/source.service.js'
 import { crawlSource } from '../modules/crawler/crawler.service.js'
 import { embedAndStore } from '../modules/jobs/ingestion.job.js'
 import prisma from '../lib/prisma.js'
+import './source-cleanup.worker.js'
 
 dotenv.config();
 

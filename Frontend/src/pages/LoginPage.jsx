@@ -42,10 +42,10 @@ export default function LoginPage({ initialMode = "login", onHome }) {
   return (
     <main className="auth-page">
       <div className="auth-layout">
-        <section className="auth-intro" aria-label="RAG Workspace">
-          <a className="auth-brand" href="/" aria-label="RAG Workspace home">
-            <span className="auth-brand-mark" aria-hidden="true">R</span>
-            <span>RAG / WORKSPACE</span>
+        <section className="auth-intro" aria-label="DocuFlux">
+          <a className="auth-brand" href="/" aria-label="DocuFlux home">
+            <span className="auth-brand-mark" aria-hidden="true">DF</span>
+            <span>DOCUFLUX</span>
           </a>
 
           <div className="auth-intro-copy">

@@ -52,6 +52,7 @@ await app.register(rateLimit, {
 await app.register(cors, {
   origin: frontendOrigin,
   credentials: true,
+  methods: ["GET", "HEAD", "POST", "PATCH", "DELETE", "OPTIONS"],
 });
 
 app.register(registerWorkspaceRoute, { prefix: "/api/workspace" });

@@ -13,9 +13,12 @@ export function getWorkspace(userId){
     return prisma.workspace.findMany({
         where:{userId},
         include:{
-            // i think while getting workspace we also show what workspace is this means of what source it is like which like so source is selected
-
-            sources:{select:{id:true , status:true}},
+            sources:{select:{id:true, status:true, url:true, createdAt:true}},
+            messages:{
+                take: 1,
+                orderBy: {createdAt: 'desc'},
+                select: {content: true, createdAt: true, role: true}
+            },
             _count : {select:{messages:true}}
         },
         orderBy:{createdAt:'desc'}
