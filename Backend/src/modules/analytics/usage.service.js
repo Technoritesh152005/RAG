@@ -33,13 +33,14 @@ export async function getUsageStats(workspaceId) {
       workspaceId,
       type: "CHAT",
     },
+    orderBy: { createdAt: "asc" },
   });
 
   const totals = logs.reduce(
     (result, log) => {
-      result.embeddingTokens += log.embeddingTokens;
-      result.llmInputTokens += log.llmInputTokens;
-      result.llmOutputTokens += log.llmOutputTokens;
+      result.embeddingTokens += log.embeddingTokens || 0;
+      result.llmInputTokens += log.llmInputTokens || 0;
+      result.llmOutputTokens += log.llmOutputTokens || 0;
 
       if (Number.isFinite(log.latencyMs)) {
         result.latencies.push(log.latencyMs);
@@ -55,6 +56,51 @@ export async function getUsageStats(workspaceId) {
     },
   );
 
+  // Group by date for interactive charts
+  const historyMap = {};
+  logs.forEach((log) => {
+    const dateStr = new Date(log.createdAt).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+
+    if (!historyMap[dateStr]) {
+      historyMap[dateStr] = {
+        date: dateStr,
+        requests: 0,
+        cacheHits: 0,
+        cacheMisses: 0,
+        tokens: 0,
+        _latencies: [],
+      };
+    }
+
+    const item = historyMap[dateStr];
+    item.requests += 1;
+    if (log.metadata?.cacheHit) {
+      item.cacheHits += 1;
+    } else {
+      item.cacheMisses += 1;
+    }
+    item.tokens += (log.llmInputTokens || 0) + (log.llmOutputTokens || 0);
+    if (Number.isFinite(log.latencyMs)) {
+      item._latencies.push(log.latencyMs);
+    }
+  });
+
+  const history = Object.values(historyMap).map((item) => ({
+    date: item.date,
+    requests: item.requests,
+    cacheHits: item.cacheHits,
+    cacheMisses: item.cacheMisses,
+    tokens: item.tokens,
+    avgLatency: item._latencies.length
+      ? Math.round(
+          item._latencies.reduce((a, b) => a + b, 0) / item._latencies.length,
+        )
+      : 0,
+  }));
+
   return {
     totalRequests: logs.length,
     totalEmbeddingTokens: totals.embeddingTokens,
@@ -62,6 +108,7 @@ export async function getUsageStats(workspaceId) {
     totalLLMOutputTokens: totals.llmOutputTokens,
     avgLatencyMs: average(totals.latencies),
     p95LatencyMs: percentile(totals.latencies, 95),
+    history,
   };
 }
 

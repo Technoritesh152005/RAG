@@ -7,16 +7,24 @@ import {
 import { queryKeys } from "../../api/queryKeys";
 import { MutationFeedback, QueryFeedback } from "../../components/asyncFeedback";
 
-export default function WorkspaceFAQs({ workspaceId }) {
+function formatFaqAnswer(text) {
+  if (!text) return "";
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/`(.*?)`/g, "'$1'")
+    .replace(/^>\s*/gm, "");
+}
+
+export default function WorkspaceFAQs({ workspaceId, onSelectQuestion }) {
   const queryClient = useQueryClient();
   const [notice, setNotice] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
 
   const faqsQuery = useQuery({
     queryKey: queryKeys.faqs(workspaceId),
     queryFn: () => getWorkspaceFAQs(workspaceId),
     enabled: Boolean(workspaceId),
     staleTime: 30_000,
-    refetchInterval: 30_000,
   });
 
   const generateMutation = useMutation({
@@ -26,66 +34,79 @@ export default function WorkspaceFAQs({ workspaceId }) {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.faqs(workspaceId),
       });
+      setIsOpen(true);
     },
   });
 
   if (!workspaceId) return null;
 
+  const faqs = faqsQuery.data ?? [];
+
   return (
-    <section aria-labelledby="workspace-faq-title">
-      <header>
-        <div>
-          <h2 id="workspace-faq-title">Frequently asked questions</h2>
-          <p>Generated from questions asked in this workspace.</p>
+    <div className={`faq-widget-card ${isOpen ? "is-open" : "is-closed"}`}>
+      <div className="faq-widget-header" onClick={() => setIsOpen(!isOpen)} style={{ cursor: "pointer" }}>
+        <div className="faq-header-title-wrap">
+          <div className="faq-title-row">
+            <h3>Suggested Questions</h3>
+            <span className="faq-count-badge">{faqs.length}</span>
+          </div>
+          <p>Click to {isOpen ? "collapse" : "expand"} common questions & answers.</p>
         </div>
 
-        <div>
+        <div className="faq-header-right-actions">
           <button
             type="button"
-            onClick={() => faqsQuery.refetch()}
-            disabled={faqsQuery.isFetching}
-          >
-            {faqsQuery.isFetching ? "Refreshing..." : "Refresh"}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => generateMutation.mutate()}
+            className="secondary-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              generateMutation.mutate();
+            }}
             disabled={generateMutation.isPending}
+            title="Generate FAQs from chat history"
           >
-            {generateMutation.isPending ? "Starting..." : "Generate FAQs"}
+            {generateMutation.isPending ? "Generating..." : "+ Auto-Generate"}
           </button>
+          <span className="faq-toggle-arrow">{isOpen ? "▲" : "▼"}</span>
         </div>
-      </header>
+      </div>
 
-      {notice && <p role="status">{notice}</p>}
+      {isOpen && (
+        <div className="faq-dropdown-body">
+          {notice && <p className="form-hint text-green" role="status">{notice}</p>}
 
-      <MutationFeedback
-        mutation={generateMutation}
-        pendingMessage="Starting FAQ generation..."
-        successMessage={notice || "FAQ generation started in the background."}
-      />
+          <MutationFeedback
+            mutation={generateMutation}
+            pendingMessage="Generating FAQs..."
+            successMessage={notice || "FAQ generation started."}
+          />
 
-      <QueryFeedback
-        isLoading={faqsQuery.isLoading}
-        error={faqsQuery.error}
-        onRetry={() => faqsQuery.refetch()}
-        isEmpty={faqsQuery.data?.length === 0}
-        emptyMessage="No FAQs yet. They’re generated automatically after every 10 workspace questions. You can also generate them manually after at least 5 questions."
-        hasData={faqsQuery.data !== undefined}
-      >
-        <div>
-          {(faqsQuery.data ?? []).map((faq) => (
-            <details key={faq.id}>
-              <summary>{faq.question}</summary>
-              <p>{faq.answer}</p>
-              <small>
-                Updated {new Date(faq.updatedAt).toLocaleString()}
-              </small>
-            </details>
-          ))}
+          <QueryFeedback
+            isLoading={faqsQuery.isLoading}
+            error={faqsQuery.error}
+            onRetry={() => faqsQuery.refetch()}
+            isEmpty={faqs.length === 0}
+            emptyMessage="No questions generated yet. Ask questions in the chat to auto-generate FAQs."
+            hasData={faqsQuery.data !== undefined}
+          >
+            <div className="faq-items-list">
+              {faqs.map((faq) => (
+                <div key={faq.id} className="faq-item">
+                  <div
+                    className="faq-question-row"
+                    onClick={() => onSelectQuestion && onSelectQuestion(faq.question)}
+                    title="Click to ask this question in chat"
+                  >
+                    <span className="faq-q-badge">Q</span>
+                    <span className="faq-q-text">{faq.question}</span>
+                    <span className="faq-ask-prompt">Ask →</span>
+                  </div>
+                  <p className="faq-a-text">{formatFaqAnswer(faq.answer)}</p>
+                </div>
+              ))}
+            </div>
+          </QueryFeedback>
         </div>
-      </QueryFeedback>
-    </section>
+      )}
+    </div>
   );
 }

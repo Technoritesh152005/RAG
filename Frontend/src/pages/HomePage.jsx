@@ -4,13 +4,13 @@ export default function HomePage({ onSignIn, onGetStarted }) {
   return (
     <main className="home-page">
       <header className="home-nav">
-        <a className="home-brand" href="#top" aria-label="RAG Workspace home">
-          <span className="home-brand-mark" aria-hidden="true">IX</span>
-          <span>Index</span>
+        <a className="home-brand" href="#top" aria-label="DocuFlux home">
+          <span className="home-brand-mark" aria-hidden="true">DF</span>
+          <span>DocuFlux</span>
         </a>
 
         <nav aria-label="Main navigation">
-          <a href="#why">Why Index</a>
+          <a href="#why">Why DocuFlux</a>
           <a href="#workflow">How it works</a>
           <a href="#principles">Principles</a>
           <button className="home-nav-signin" type="button" onClick={onSignIn}>
@@ -192,8 +192,8 @@ export default function HomePage({ onSignIn, onGetStarted }) {
 
       <footer className="home-footer">
         <a className="home-brand" href="#top">
-          <span className="home-brand-mark" aria-hidden="true">IX</span>
-          <span>Index</span>
+          <span className="home-brand-mark" aria-hidden="true">DF</span>
+          <span>DocuFlux</span>
         </a>
         <p>Answers from the docs you indexed.</p>
         <button type="button" onClick={onGetStarted}>Start indexing <span aria-hidden="true">→</span></button>

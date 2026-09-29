@@ -1,8 +1,8 @@
 //
 // here after creating workspace u trgger the job in queue
 import prisma from "../../lib/prisma.js";
-import { addIngestionQueue } from "../jobs/queue.js";
-import { cleanupSource } from "../workspace/cleanup.service.js";
+import { addIngestionQueue, addSourceCleanupQueue } from "../jobs/queue.js";
+import { deleteWorkspaceCache } from "../cache/semantic-cache.service.js";
 
 export function validateSourceUrl(sourceUrl) {
   let parsed;
@@ -91,10 +91,8 @@ export async function deleteSource(sourceId, userId) {
   });
   if (!source) throw new Error("Source not found");
 
-  // cleanup vectors and chunks first
-  await cleanupSource(sourceId, source.workspaceId);
+  await addSourceCleanupQueue({ sourceId, workspaceId: source.workspaceId });
 
-  // then delete from DB
   return prisma.source.delete({ where: { id: sourceId } });
 }
 
@@ -107,6 +105,9 @@ export async function reIndexSource(sourceId, userId) {
     },
   });
   if (!source) throw new Error("No Source found for re-indexing");
+
+  await deleteWorkspaceCache(source.workspaceId);
+
   const updatedSource = await prisma.source.updateMany({
     where: { id: sourceId },
     data: {

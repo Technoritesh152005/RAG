@@ -15,10 +15,27 @@ export const ingestionQueue = new Queue(
 
 )
 
+export const sourceCleanupQueue = new Queue("source-cleanup-queue", {
+    connection: redis,
+    attempts: 5,
+    backoff: {
+        type: "exponential",
+        delay: 5000,
+    },
+    removeOnComplete: 100,
+    removeOnFail: 200,
+});
+
 //basically puts the ingestion job in the queue and it will be processed by the worker
 export async function addIngestionQueue(data){
     const job = await ingestionQueue.add('ingest-source', data , {
         jobId: data.jobId || `source-${data.sourceId}`
     })
     console.log('Ingestion job added in queue')
+}
+
+export async function addSourceCleanupQueue(data) {
+    return sourceCleanupQueue.add("cleanup-source", data, {
+        jobId: `cleanup-source-${data.sourceId}`,
+    });
 }
