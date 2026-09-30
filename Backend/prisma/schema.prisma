@@ -23,18 +23,23 @@ model Workspace{
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-
+enum SourceType{
+  URL
+  YOUTUBE
+}
 // url source schema
 model Source {
   id String @id @default(uuid())
   url String
   workspaceId String
+  sourceType SourceType @default(URL)
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   status SourceStatus @default(PENDING)
   pageCount Int?
   chunkCount Int?
   error String ?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
 // this tells each url will have only one workspace 
   @@unique([url, workspaceId])

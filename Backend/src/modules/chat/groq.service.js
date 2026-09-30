@@ -7,7 +7,7 @@ const groq = new Groq({
 
 const LLM_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-20b";
 
-const MAX_TOKENS = 512;
+const MAX_TOKENS = 2048;
 
 //we stream aswer by chunk not send whole nswer once
 export async function streamAnswer({

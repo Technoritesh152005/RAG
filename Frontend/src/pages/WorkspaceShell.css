@@ -950,6 +950,259 @@
   border-radius: 14px;
 }
 
+.indexing-walkthrough {
+  position: relative;
+  overflow: hidden;
+  padding: 22px 24px 17px;
+  background:
+    linear-gradient(115deg, rgba(23, 105, 255, 0.11), transparent 58%),
+    #151a21;
+  border: 1px solid #30415a;
+  border-radius: 12px;
+  animation: walkthrough-arrive 420ms ease-out both;
+}
+
+.indexing-walkthrough::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: linear-gradient(180deg, #1769ff, #75e632);
+  content: "";
+}
+
+.indexing-walkthrough.is-done {
+  border-color: rgba(34, 197, 94, 0.45);
+}
+
+.indexing-walkthrough.is-failed {
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.walkthrough-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.walkthrough-heading-copy {
+  min-width: 0;
+}
+
+.walkthrough-eyebrow {
+  margin: 0 0 7px;
+  color: #78a8ff;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+}
+
+.indexing-walkthrough h3 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.walkthrough-url {
+  max-width: 650px;
+  overflow: hidden;
+  margin: 6px 0 0;
+  color: #9ca9b8;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.walkthrough-skip {
+  min-height: 32px;
+  flex: 0 0 auto;
+  padding: 0 10px;
+  color: #c6d0dc;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid #3b4654;
+  border-radius: 5px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.walkthrough-skip:hover {
+  color: #ffffff;
+  border-color: #7894bc;
+}
+
+.walkthrough-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 20px 0 16px;
+}
+
+.walkthrough-step {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 0 10px 0 0;
+}
+
+.walkthrough-step:not(:last-child)::after {
+  position: absolute;
+  top: 12px;
+  right: 8px;
+  left: 32px;
+  height: 1px;
+  background: #394554;
+  content: "";
+}
+
+.walkthrough-step-mark {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  place-items: center;
+  color: #9aa8b8;
+  background: #1b222c;
+  border: 1px solid #445164;
+  border-radius: 50%;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 8px;
+}
+
+.walkthrough-step.is-active .walkthrough-step-mark {
+  color: #ffffff;
+  background: #1769ff;
+  border-color: #63a0ff;
+  box-shadow: 0 0 0 4px rgba(23, 105, 255, 0.14);
+  animation: walkthrough-pulse 1.6s ease-in-out infinite;
+}
+
+.walkthrough-step.is-complete .walkthrough-step-mark {
+  color: #08130d;
+  background: #75e632;
+  border-color: #75e632;
+  font-family: "DM Sans", sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.walkthrough-step-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  padding-top: 2px;
+}
+
+.walkthrough-step-copy strong {
+  color: #e7edf4;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.walkthrough-step-copy small {
+  color: #8997a8;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.walkthrough-step.is-active .walkthrough-step-copy strong {
+  color: #ffffff;
+}
+
+.walkthrough-step.is-complete .walkthrough-step-copy strong {
+  color: #9ce86b;
+}
+
+.walkthrough-live-line {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  color: #c1ccd8;
+  background: rgba(5, 10, 16, 0.42);
+  border-top: 1px solid #2e3946;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.walkthrough-live-indicator {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  background: #75e632;
+  border-radius: 50%;
+}
+
+.indexing-walkthrough:not(.is-done):not(.is-failed) .walkthrough-live-indicator::after {
+  position: absolute;
+  inset: -4px;
+  border: 1px solid rgba(117, 230, 50, 0.55);
+  border-radius: 50%;
+  animation: walkthrough-ring 1.6s ease-out infinite;
+  content: "";
+}
+
+.indexing-walkthrough.is-failed .walkthrough-live-indicator {
+  background: #ef4444;
+}
+
+.walkthrough-progress {
+  display: block;
+  width: 100%;
+  height: 4px;
+  margin-top: 10px;
+  overflow: hidden;
+  appearance: none;
+  border: 0;
+  border-radius: 4px;
+  background: #293340;
+}
+
+.walkthrough-progress::-webkit-progress-bar {
+  background: #293340;
+  border-radius: 4px;
+}
+
+.walkthrough-progress::-webkit-progress-value {
+  background: linear-gradient(90deg, #1769ff, #75e632);
+  border-radius: 4px;
+  transition: width 350ms ease;
+}
+
+.walkthrough-progress::-moz-progress-bar {
+  background: linear-gradient(90deg, #1769ff, #75e632);
+  border-radius: 4px;
+}
+
+.walkthrough-skip-note {
+  margin: 9px 0 0;
+  color: #8492a3;
+  font-size: 9px;
+}
+
+@keyframes walkthrough-arrive {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes walkthrough-pulse {
+  50% { box-shadow: 0 0 0 7px rgba(23, 105, 255, 0.07); }
+}
+
+@keyframes walkthrough-ring {
+  from { opacity: 0.8; transform: scale(0.65); }
+  to { opacity: 0; transform: scale(1.6); }
+}
+
 .source-input-group {
   display: flex;
   flex-direction: column;
@@ -1908,7 +2161,10 @@
   .chat-bubble-card.is-streaming .assistant-pulse-mark,
   .generating-indicator,
   .generation-dots i,
-  .stream-cursor {
+  .stream-cursor,
+  .indexing-walkthrough,
+  .walkthrough-step.is-active .walkthrough-step-mark,
+  .walkthrough-live-indicator::after {
     animation: none;
   }
 }
@@ -2284,5 +2540,34 @@
   }
   .page-content {
     padding: 24px 20px;
+  }
+
+  .indexing-walkthrough {
+    padding: 18px 16px 14px;
+  }
+
+  .walkthrough-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 8px;
+  }
+
+  .walkthrough-step::after {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .walkthrough-heading {
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .walkthrough-steps {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .walkthrough-step-copy small {
+    font-size: 10px;
   }
 }

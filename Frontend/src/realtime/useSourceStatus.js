@@ -30,6 +30,9 @@ export function useSourceStatus(workspaceId) {
               status: update.status,
               pageCount: update.pageCount ?? source.pageCount,
               chunkCount: update.chunkCount ?? source.chunkCount,
+              embeddingCompleted:
+                update.embeddingCompleted ?? source.embeddingCompleted,
+              embeddingTotal: update.embeddingTotal ?? source.embeddingTotal,
               error: update.error ?? null,
             };
           });
