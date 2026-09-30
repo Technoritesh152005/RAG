@@ -16,6 +16,7 @@ export default function SourcePanel({ workspaceId }) {
 
   const [url, setUrl] = useState("");
   const [formError, setFormError] = useState("");
+  const [walkthroughSourceId, setWalkthroughSourceId] = useState(null);
 
   const sourcesQuery = useQuery({
     queryKey: queryKeys.sources(workspaceId),
@@ -25,8 +26,9 @@ export default function SourcePanel({ workspaceId }) {
 
   const addSourceMutation = useMutation({
     mutationFn: (url) => addSource(workspaceId, url),
-    onSuccess: async () => {
+    onSuccess: async (source) => {
       setUrl("");
+      setWalkthroughSourceId(source.id);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.sources(workspaceId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.workspaceStats(workspaceId) }),
@@ -158,6 +160,36 @@ export default function SourcePanel({ workspaceId }) {
   }
 
   const sources = sourcesQuery.data ?? [];
+  const walkthroughSource =
+    sources.find((source) => source.id === walkthroughSourceId) ??
+    (addSourceMutation.data?.id === walkthroughSourceId
+      ? addSourceMutation.data
+      : null);
+
+  const indexingSteps = [
+    { key: "PENDING", title: "Queued", detail: "Waiting for an indexer" },
+    { key: "SCRAPING", title: "Reading pages", detail: "Following links in this section" },
+    { key: "CHUNKING", title: "Preparing text", detail: "Splitting pages into passages" },
+    { key: "EMBEDDING", title: "Building search", detail: "Making passages searchable" },
+    { key: "DONE", title: "Ready", detail: "Available in workspace chat" },
+  ];
+  const statusOrder = {
+    PENDING: 0,
+    SCRAPING: 1,
+    CHUNKING: 2,
+    EMBEDDING: 3,
+    DONE: 4,
+  };
+  const walkthroughStatus = walkthroughSource?.status ?? "PENDING";
+  const activeStep = statusOrder[walkthroughStatus] ?? 0;
+  const embeddingProgress = walkthroughSource?.embeddingTotal
+    ? Math.min(
+        100,
+        Math.round(
+          (walkthroughSource.embeddingCompleted / walkthroughSource.embeddingTotal) * 100,
+        ),
+      )
+    : null;
 
   return (
     <div className="source-panel-container">
@@ -204,6 +236,107 @@ export default function SourcePanel({ workspaceId }) {
           successMessage="Source added and queued for processing."
         />
       </form>
+
+      {walkthroughSource && (
+        <section
+          className={`indexing-walkthrough ${walkthroughStatus === "FAILED" ? "is-failed" : ""} ${walkthroughStatus === "DONE" ? "is-done" : ""}`}
+          aria-live="polite"
+          aria-labelledby="indexing-walkthrough-title"
+        >
+          <div className="walkthrough-heading">
+            <div className="walkthrough-heading-copy">
+              <p className="walkthrough-eyebrow">DOCUFLUX / LIVE INDEXING</p>
+              <h3 id="indexing-walkthrough-title">
+                {walkthroughStatus === "DONE"
+                  ? "Your source is ready"
+                  : walkthroughStatus === "FAILED"
+                    ? "This source needs attention"
+                    : "Here’s what DocuFlux is doing"}
+              </h3>
+              <p className="walkthrough-url" title={walkthroughSource.url}>
+                {walkthroughSource.url}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="walkthrough-skip"
+              onClick={() => setWalkthroughSourceId(null)}
+            >
+              {walkthroughStatus === "DONE" || walkthroughStatus === "FAILED"
+                ? "Dismiss"
+                : "Skip animation"}
+            </button>
+          </div>
+
+          <div className="walkthrough-steps">
+            {indexingSteps.map((step, index) => {
+              const completed = walkthroughStatus === "DONE" || index < activeStep;
+              const active = walkthroughStatus !== "DONE" &&
+                walkthroughStatus !== "FAILED" && index === activeStep;
+
+              return (
+                <div
+                  className={`walkthrough-step ${completed ? "is-complete" : ""} ${active ? "is-active" : ""}`}
+                  key={step.key}
+                >
+                  <span className="walkthrough-step-mark" aria-hidden="true">
+                    {completed ? "✓" : String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span className="walkthrough-step-copy">
+                    <strong>{step.title}</strong>
+                    <small>{step.detail}</small>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="walkthrough-live-line">
+            <span className="walkthrough-live-indicator" aria-hidden="true" />
+            {walkthroughStatus === "PENDING" && "Your source is queued. A worker will start reading it shortly."}
+            {walkthroughStatus === "SCRAPING" && (
+              <>
+                {walkthroughSource.pageCount
+                  ? `Reading pages · ${walkthroughSource.pageCount} found`
+                  : "Opening the section and reading its pages"}
+                {walkthroughSource.chunkCount != null &&
+                  ` · ${walkthroughSource.chunkCount} passages found`}
+              </>
+            )}
+            {walkthroughStatus === "CHUNKING" &&
+              `Splitting pages into searchable passages${walkthroughSource.pageCount ? ` · ${walkthroughSource.pageCount} pages read` : ""}`}
+            {walkthroughStatus === "EMBEDDING" && (
+              <>
+                {embeddingProgress != null
+                  ? `Making ${walkthroughSource.embeddingTotal} passages searchable · ${embeddingProgress}% complete`
+                  : "Splitting the content into passages and making it searchable"}
+                {walkthroughSource.embeddingCompleted != null &&
+                  ` · ${walkthroughSource.embeddingCompleted}/${walkthroughSource.embeddingTotal} embedded`}
+              </>
+            )}
+            {walkthroughStatus === "DONE" && (
+              `Ready to chat · ${walkthroughSource.pageCount ?? 0} pages · ${walkthroughSource.chunkCount ?? 0} passages`
+            )}
+            {walkthroughStatus === "FAILED" &&
+              (walkthroughSource.error || "Indexing failed. Check the source URL and try again.")}
+          </div>
+
+          {walkthroughStatus === "EMBEDDING" && walkthroughSource.embeddingTotal > 0 && (
+            <progress
+              className="walkthrough-progress"
+              max={walkthroughSource.embeddingTotal}
+              value={walkthroughSource.embeddingCompleted ?? 0}
+              aria-label="Embedding progress"
+            />
+          )}
+
+          {walkthroughStatus !== "DONE" && walkthroughStatus !== "FAILED" && (
+            <p className="walkthrough-skip-note">
+              You can leave this here or skip the walkthrough. Indexing continues either way.
+            </p>
+          )}
+        </section>
+      )}
 
       {/* Sources List & Details */}
       <QueryFeedback

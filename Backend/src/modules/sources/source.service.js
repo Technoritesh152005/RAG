@@ -3,7 +3,7 @@
 import prisma from "../../lib/prisma.js";
 import { addIngestionQueue, addSourceCleanupQueue } from "../jobs/queue.js";
 import { deleteWorkspaceCache } from "../cache/semantic-cache.service.js";
-
+import { detectSourceTypes, extractVideoUrl } from "./url-detector.service.js";
 export function validateSourceUrl(sourceUrl) {
   let parsed;
   try {
@@ -17,7 +17,7 @@ export function validateSourceUrl(sourceUrl) {
   if (parsed.pathname === "/" || parsed.pathname === "") {
     throw new Error(
       `Please paste a specific section URL, not the homepage.\n` +
-        `Example: https://react.dev/learn instead of https://react.dev`,
+        `Example: https://example.com/xyz instead of https://example.com`,
     );
   }
 
@@ -31,12 +31,21 @@ export function validateSourceUrl(sourceUrl) {
     throw new Error("Localhost URLs are not supported");
   }
 
+  const sourceType = detectSourceTypes(parsed);
+  if (sourceType === "YOUTUBE") {
+    const id = extractVideoUrl(parsed); // this will throw error if url is not valid youtube url
+    return {
+      parsed: true,
+      sourceType,
+    };
+  }
+
   //if everything clear return true
   return true;
 }
 export async function addSource({ url, workspaceId, userId }) {
+  const { sourceType } = validateSourceUrl(url);
 
-    validateSourceUrl(url)
   const workspace = await prisma.workspace.findUnique({
     where: {
       id: workspaceId,
@@ -48,6 +57,7 @@ export async function addSource({ url, workspaceId, userId }) {
   const source = await prisma.source.create({
     data: {
       url: url,
+      sourceType,
       workspaceId,
       status: "PENDING",
     },
@@ -58,6 +68,7 @@ export async function addSource({ url, workspaceId, userId }) {
     sourceId: source.id,
     workspaceId,
     url,
+    sourceType,
   });
   return source;
 }
@@ -122,6 +133,7 @@ export async function reIndexSource(sourceId, userId) {
     sourceId: source.id,
     workspaceId: source.workspaceId,
     url: source.url,
+    sourceType: source.sourceType,
     jobId: `reindex-${source.id}-${Date.now()}`,
   });
 

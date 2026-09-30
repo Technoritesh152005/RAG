@@ -22,6 +22,8 @@ const worker = new Worker(
             // mark as scraping
             await updateSourceStatus(sourceId, 'SCRAPING')
             await emitStatusUpdates(workspaceId, sourceId, 'SCRAPING')
+
+            let chunkedCount = 0;
            
 
             const { allChunks, pageCount, chunkCount } = await crawlSource({
@@ -37,11 +39,18 @@ const worker = new Worker(
                         where: { id: sourceId },
                         data: { pageCount },
                     })
+                    await emitStatusUpdates(workspaceId, sourceId, 'SCRAPING', {
+                        pageCount,
+                    })
                 },
 
                 // called with chunks which gets from each page
                 onPageCrawled: async ({ pageUrl, pageTitle, chunks }) => {
+                    chunkedCount += chunks.length
                     console.log(`Got ${chunks.length} chunks from ${pageUrl}`)
+                    await emitStatusUpdates(workspaceId, sourceId, 'SCRAPING', {
+                        chunkCount: chunkedCount,
+                    })
                 }
             })
 
@@ -56,7 +65,12 @@ const worker = new Worker(
                 throw new Error('No chunks were produced from the source')
             }
 
-            await embedAndStore(allChunks, sourceId, workspaceId)
+            await embedAndStore(allChunks, sourceId, workspaceId, async ({ completed, total }) => {
+                await emitStatusUpdates(workspaceId, sourceId, 'EMBEDDING', {
+                    embeddingCompleted: completed,
+                    embeddingTotal: total,
+                })
+            })
 
             await updateSourceStatus(sourceId, 'DONE', {
                 pageCount,

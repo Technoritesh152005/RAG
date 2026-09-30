@@ -10,6 +10,7 @@ export async function crawlSource({ url, sourceId, workspaceId, onPageCrawled, o
     const crawledUrls = new Set() // Track visited URLs
 
     const rootUrl = new URL(url)
+    const allowedHostname = rootUrl.hostname.toLowerCase()
     const basePath = rootUrl.pathname
     let pageCount = 0
 
@@ -22,6 +23,12 @@ export async function crawlSource({ url, sourceId, workspaceId, onPageCrawled, o
 
         async requestHandler({ request, $, enqueueLinks }) {
             const currentUrl = request.url
+            const currentHostname = new URL(currentUrl).hostname.toLowerCase()
+            if (currentHostname !== allowedHostname) {
+                console.log(`Skipping cross-host page: ${currentUrl}`)
+                return
+            }
+
             console.log(`Crawling ${currentUrl}`)
 
             // Skip if already crawled
@@ -76,6 +83,10 @@ export async function crawlSource({ url, sourceId, workspaceId, onPageCrawled, o
                 transformRequestFunction(req) {
 
                     const linkUrl = new URL(req.url)
+
+                    if (linkUrl.hostname.toLowerCase() !== allowedHostname) {
+                        return false
+                    }
 
                     // only crawl pages under the same path prefix
                     if (!linkUrl.pathname.startsWith(basePath)) {
