@@ -134,6 +134,7 @@ export async function reIndexSource(sourceId, userId) {
     workspaceId: source.workspaceId,
     url: source.url,
     sourceType: source.sourceType,
+    storagePath:source.sourceType?sourceType:null,
     jobId: `reindex-${source.id}-${Date.now()}`,
   });
 

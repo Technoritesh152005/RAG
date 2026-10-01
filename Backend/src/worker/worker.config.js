@@ -7,6 +7,7 @@ import { crawlSource } from "../modules/crawler/crawler.service.js";
 import { ingestYouTubeSource } from "../modules/youtube/youtube.service.js";
 import prisma from "../lib/prisma.js";
 import { deleteWorkspaceCache } from "../modules/cache/semantic-cache.service.js";
+import { ingestPdfSource } from "../modules/pdf/pdf.service.js";
 import "./source-cleanup.worker.js";
 
 const worker = new Worker(
@@ -39,7 +40,10 @@ const worker = new Worker(
           sourceId,
           workspaceId,
           onProgress: async (progress) => {
-            console.log(`YouTube ingestion progress for ${sourceId}:`, progress);
+            console.log(
+              `YouTube ingestion progress for ${sourceId}:`,
+              progress,
+            );
             await emitStatusUpdates(workspaceId, sourceId, "SCRAPING", {
               pageCount: 0,
               chunkCount: chunkedCount,
@@ -51,7 +55,7 @@ const worker = new Worker(
         allChunks = result.allChunks ?? [];
         pageCount = 1;
         chunkCount = result.chunkCount ?? allChunks.length;
-      } else {
+      } else if (sourceType === "URL") {
         const result = await crawlSource({
           url,
           sourceId,
@@ -81,6 +85,17 @@ const worker = new Worker(
         allChunks = result.allChunks ?? [];
         pageCount = result.pageCount ?? pageCount;
         chunkCount = result.chunkCount ?? allChunks.length;
+      } else {
+        const result = await ingestPdfSource({
+          sourceId,
+          workspaceId,
+          storagePath: job.data.storagePath, // NEW — read from job payload
+          onProgress: async (data) => {
+            console.log("PDF ingestion progress:", data);
+          },
+        });
+        allChunks = result.allChunks;
+        pageCount = result.pageCount;
       }
 
       console.log(
@@ -108,15 +123,22 @@ const worker = new Worker(
         embeddingTotal: chunkCount,
       });
 
-      await embedAndStore(allChunks, sourceId, workspaceId, async ({ completed, total }) => {
-        console.log(`Embedding progress for ${sourceId}: ${completed}/${total}`);
-        await emitStatusUpdates(workspaceId, sourceId, "EMBEDDING", {
-          pageCount,
-          chunkCount,
-          embeddingCompleted: completed,
-          embeddingTotal: total,
-        });
-      });
+      await embedAndStore(
+        allChunks,
+        sourceId,
+        workspaceId,
+        async ({ completed, total }) => {
+          console.log(
+            `Embedding progress for ${sourceId}: ${completed}/${total}`,
+          );
+          await emitStatusUpdates(workspaceId, sourceId, "EMBEDDING", {
+            pageCount,
+            chunkCount,
+            embeddingCompleted: completed,
+            embeddingTotal: total,
+          });
+        },
+      );
 
       await deleteWorkspaceCache(workspaceId);
       await updateSourceStatus(sourceId, "DONE", {
@@ -138,10 +160,15 @@ const worker = new Worker(
 
       await updateSourceStatus(sourceId, "FAILED", { error: message }).catch(
         (statusError) => {
-          console.error(`Could not save failed status for ${sourceId}:`, statusError);
+          console.error(
+            `Could not save failed status for ${sourceId}:`,
+            statusError,
+          );
         },
       );
-      await emitStatusUpdates(workspaceId, sourceId, "FAILED", { error: message });
+      await emitStatusUpdates(workspaceId, sourceId, "FAILED", {
+        error: message,
+      });
       throw error;
     }
   },
