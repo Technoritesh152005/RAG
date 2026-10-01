@@ -26,12 +26,14 @@ model Workspace{
 enum SourceType{
   URL
   YOUTUBE
+  
 }
 // url source schema
 model Source {
   id String @id @default(uuid())
   url String
   workspaceId String
+  storagePath String?  // basically suob storage object key
   sourceType SourceType @default(URL)
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   status SourceStatus @default(PENDING)

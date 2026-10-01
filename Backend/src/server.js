@@ -14,6 +14,8 @@ import prisma from "./lib/prisma.js";
 import { getPineconeIndex } from "./lib/pinecone.js";
 import {registerUsageRoutes} from './modules/analytics/usage.routes.js'
 import {evalRoutes} from './modules/eval/eval.routes.js'
+import {registerPdfUploadRoutes} from './modules/sources/pdf-upload.routes.js'
+
 import redis from './lib/redis.js'
 
 dotenv.config();
@@ -60,6 +62,7 @@ app.register(registerSourceRoutes, { prefix: "/api/workspaces" });
 app.register(chatRoutes, { prefix: "/api/workspaces" });
 app.register(registerUsageRoutes, { prefix: "/api/workspaces" });
 app.register(evalRoutes, {prefix:"/api/workspaces"})
+app.register(registerPdfUploadRoutes, {prefix:'/api/workspaces'})
 
 // create http server for socket.io
 const httpServer = app.server;
