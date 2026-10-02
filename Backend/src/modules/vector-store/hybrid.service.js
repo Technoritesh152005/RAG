@@ -1,3 +1,4 @@
+import { performance } from "node:perf_hooks";
 import { embeddingText } from "../Embeeding/embeeding.service.config.js";
 import { vectorSearch } from "./pinecone.service.js";
 import { keywordSearch } from "./fullTextSearch.service.js";
@@ -13,69 +14,108 @@ export async function hybridSearch(
   workspaceId,
   topK = 5,
   precomputedEmbedding = null,
+  requestId = null,
 ) {
-  const searchStart = Date.now();
-  console.log(`Hybrid Search : "${question}" in workspace ${workspaceId}`);
+  const searchStart = performance.now();
+  const timings = {};
+  console.log(`[Retrieval] requestId=${requestId ?? "n/a"} workspaceId=${workspaceId}`);
 
-  //during cache check only we do embedding of question. so no need to generate embedding here also
-  const questionEmbedding =
-    precomputedEmbedding || (await embeddingText(question));
-  console.log(
-    `[Latency][Hybrid Search] embeddingMs=${Date.now() - searchStart}`,
-  );
+  let questionEmbedding = precomputedEmbedding;
+  if (!questionEmbedding) {
+    const embeddingStart = performance.now();
+    questionEmbedding = await embeddingText(question);
+    timings.queryEmbeddingMs = elapsedMs(embeddingStart);
+  } else {
+    timings.queryEmbeddingMs = 0;
+  }
 
-  // once both r completed to run then only op comes together... Both works parallely
-  const retrievalStart = Date.now();
-  const [vectorResults = [], keywordResults = []] = await Promise.all([
-    vectorSearch(questionEmbedding, workspaceId, CANDIDATE_POOL),
-    keywordSearch(question, workspaceId, CANDIDATE_POOL),
+  const candidateSearchStart = performance.now();
+  const vectorSearchStart = performance.now();
+  const keywordSearchStart = performance.now();
+  const [vectorSearchResult, keywordSearchResult] = await Promise.all([
+    vectorSearch(questionEmbedding, workspaceId, CANDIDATE_POOL).then(
+      (results) => ({ results: results ?? [], ms: elapsedMs(vectorSearchStart) }),
+    ),
+    keywordSearch(question, workspaceId, CANDIDATE_POOL).then(
+      (results) => ({ results: results ?? [], ms: elapsedMs(keywordSearchStart) }),
+    ),
   ]);
+  const vectorResults = vectorSearchResult.results;
+  const keywordResults = keywordSearchResult.results;
+  timings.vectorSearchMs = vectorSearchResult.ms;
+  timings.keywordSearchMs = keywordSearchResult.ms;
+  timings.candidateSearchWallMs = elapsedMs(candidateSearchStart);
 
-  console.log(
-    `[Latency][Hybrid Search] vectorAndKeywordSearchMs=${Date.now() - retrievalStart}`,
-  );
-  console.log(
-    `Vector results: ${vectorResults.length}, Keyword results: ${keywordResults.length}`,
-  );
+  const fusionStart = performance.now();
+  const merged =
+    vectorResults.length || keywordResults.length
+      ? reciprocalRankFusion(vectorResults, keywordResults, CANDIDATE_POOL)
+      : [];
+  timings.fusionMs = elapsedMs(fusionStart);
 
-  const fusionStart = Date.now();
-  if (vectorResults.length == 0 && keywordResults.length == 0) {
-    console.log(
-      `[Latency][Hybrid Search] fusionMs=${Date.now() - fusionStart}, totalMs=${Date.now() - searchStart}`,
-    );
+  const adaptiveTopKStart = performance.now();
+  const finalResults = merged.length ? selectAdaptiveTopK(merged) : [];
+  timings.adaptiveTopKMs = elapsedMs(adaptiveTopKStart);
+
+  const youtubeResultCounts = {
+    vector: vectorResults.filter((result) => isYoutubeUrl(result.pageUrl)).length,
+    keyword: keywordResults.filter((result) => isYoutubeUrl(result.pageUrl)).length,
+    final: finalResults.filter((result) => isYoutubeUrl(result.pageUrl)).length,
+  };
+  timings.totalMs = elapsedMs(searchStart);
+
+  const diagnostics = {
+    requestId,
+    workspaceId,
+    timings,
+    resultCounts: {
+      vector: vectorResults.length,
+      keyword: keywordResults.length,
+      merged: merged.length,
+      final: finalResults.length,
+      youtube: youtubeResultCounts,
+    },
+    youtubeUrls: [
+      ...new Set(
+        finalResults
+          .filter((result) => isYoutubeUrl(result.pageUrl))
+          .map((result) => result.pageUrl),
+      ),
+    ],
+  };
+  console.info(`[RAG_TIMING] ${JSON.stringify({ phase: "retrieval", ...diagnostics })}`);
+
+  if (vectorResults.length === 0 && keywordResults.length === 0) {
     return {
       results: [],
       confident: false,
-      reason: "No relevant search content foind in indexed sources",
+      reason: "No relevant search content found in indexed sources",
+      diagnostics,
     };
   }
-
-  const merged = reciprocalRankFusion(
-    vectorResults,
-    keywordResults,
-    CANDIDATE_POOL,
-  );
-  console.log(
-    `[Latency][Hybrid Search] fusionMs=${Date.now() - fusionStart}, totalMs=${Date.now() - searchStart}`,
-  );
-
-  console.log("Starting with selecting top adaptive k chunks");
-  const finalResults = selectAdaptiveTopK(merged);
 
   const topScore = finalResults[0]?.score;
-  if (topScore < MIN_CONFIDENCE_SCORE) {
-    return {
-      results: merged,
-      confident: false,
-      reason: "Found some content but the confidence is low",
-    };
-  }
-
+  const confident = topScore >= MIN_CONFIDENCE_SCORE;
   return {
-    results: finalResults,
-    confident: true,
-    reason: null,
+    results: confident ? finalResults : merged,
+    confident,
+    reason: confident ? null : "Found some content but the confidence is low",
+    diagnostics,
   };
+}
+
+function isYoutubeUrl(pageUrl) {
+  if (!pageUrl) return false;
+  try {
+    const hostname = new URL(pageUrl).hostname.toLowerCase();
+    return ["youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"].includes(hostname);
+  } catch {
+    return false;
+  }
+}
+
+function elapsedMs(start) {
+  return Number((performance.now() - start).toFixed(1));
 }
 
 function reciprocalRankFusion(vectorResults, keywordResults, topK) {

@@ -33,15 +33,10 @@ export function validateSourceUrl(sourceUrl) {
 
   const sourceType = detectSourceTypes(parsed);
   if (sourceType === "YOUTUBE") {
-    const id = extractVideoUrl(parsed); // this will throw error if url is not valid youtube url
-    return {
-      parsed: true,
-      sourceType,
-    };
+    extractVideoUrl(parsed); // validates that this is a supported single video URL
   }
 
-  //if everything clear return true
-  return true;
+  return { parsed: true, sourceType };
 }
 export async function addSource({ url, workspaceId, userId }) {
   const { sourceType } = validateSourceUrl(url);
@@ -134,7 +129,7 @@ export async function reIndexSource(sourceId, userId) {
     workspaceId: source.workspaceId,
     url: source.url,
     sourceType: source.sourceType,
-    storagePath:source.sourceType?sourceType:null,
+    storagePath: source.storagePath,
     jobId: `reindex-${source.id}-${Date.now()}`,
   });
 

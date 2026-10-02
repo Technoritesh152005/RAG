@@ -78,7 +78,7 @@ function groupByTimeWindow(segments, windowSeconds, overlapSeconds) {
 
   let i = 0;
   while (i < segments.length) {
-    const windowStart = segments[i].windowStart;
+    const windowStart = segments[i].start;
     const particularWindowSegments = [];
     let j = i;
 
@@ -86,14 +86,15 @@ function groupByTimeWindow(segments, windowSeconds, overlapSeconds) {
       j < segments.length &&
       segments[j].start - windowStart <= windowSeconds
     ) {
-      particularWindowSegments.push[segments[j]];
+      particularWindowSegments.push(segments[j]);
       j++;
     }
 
     //agar ek bhi parent xontext nhi hai toh break
     if (particularWindowSegments.length === 0) break;
 
-    const windowEnd = windowSegments[windowSegments.length - 1].end;
+    const windowEnd =
+      particularWindowSegments[particularWindowSegments.length - 1].end;
 
     window.push({
       startTime: windowStart,

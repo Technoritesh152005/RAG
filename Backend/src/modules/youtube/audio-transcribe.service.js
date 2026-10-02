@@ -45,24 +45,25 @@ export async function transcribeAudioFallback(videoId, onProgress) {
     console.log(
       `Audio split into ${chunkPaths.length} chunk(s) of ~${CHUNK_DURATION_SECONDS}s each`,
     );
-    const allPaths = [];
+    const allSegments = [];
     const concurrency = 3;
     for (let i = 0; i < chunkPaths.length; i += concurrency) {
       //we transcribe each chunk seperately
       //at a time in a batch put 3 chuns+ks
       const batch = chunkPaths.slice(i, i + concurrency);
       const chunkSegments = await Promise.all(
-        batch.map((chunk, chunkIndex) => {
-          const chunkIndex = i + chunkIndex;
-
-          transcribeChunks(chunk, chunkIndex * CHUNK_DURATION_SECONDS);
-        }),
+        batch.map((chunk, batchIndex) =>
+          transcribeChunks(
+            chunk,
+            (i + batchIndex) * CHUNK_DURATION_SECONDS,
+          ),
+        ),
       );
 
       console.log(
         `Im here at chunkSegments after transcribing and mapping the time, response or answer looks like ${chunkSegments}`,
       );
-      allPaths.push(...chunkSegments);
+      allSegments.push(...chunkSegments);
 
       // respect Groq free-tier rate limits between sequential calls
       if (i < chunkPaths.length - 1) await sleep(500);
@@ -73,7 +74,7 @@ export async function transcribeAudioFallback(videoId, onProgress) {
     );
     return allSegments;
   } catch (error) {
-    throw new Error();
+    throw error;
   } finally {
     // always clean up temp audio/chunk files, even if a step above threw —
     // this is a bounded temp dir, never leaves orphaned files on disk

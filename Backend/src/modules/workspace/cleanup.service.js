@@ -25,7 +25,7 @@ export async function cleanupWorkspace(workspaceId){
 
 //cleanup when a single source is deleted
 export async function cleanupSource(sourceId, workspaceId){
-    const source = await primsa.source.findFirst({where:{id:sourceId}})
+    const source = await prisma.source.findFirst({where:{id:sourceId}})
     console.log(`Cleaning up source: ${sourceId}`)
     
 

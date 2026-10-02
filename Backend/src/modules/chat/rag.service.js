@@ -3,6 +3,7 @@ import { generateTextFAQs, streamAnswer } from "../chat/groq.service.js";
 import { logUsage, estimateTokens } from "../analytics/usage.service.js";
 import { embedTexts } from "../Embeeding/embeeding.service.config.js";
 import { lookUpCache, storeInCache } from "../cache/semantic-cache.service.js";
+import { getSourceComparisonKey } from "../sources/url-detector.service.js";
 export async function runRAGPipeline({
   question,
   workspaceId,
@@ -61,6 +62,8 @@ export async function runRAGPipeline({
   const { results, confident, reason } = await hybridSearch(
     question,
     workspaceId,
+    undefined,
+    questionEmbedding,
   );
   console.log(`[Latency][RAG] hybridSearchMs=${Date.now() - retrievalStart}`);
 
@@ -206,10 +209,11 @@ Try:
 }
 
 async function detectContradiction(question, results) {
-  const uniquePages = new Set(results.map((r) => r.pageUrl));
-  if (uniquePages.size < 2) {
+  const uniqueSources = new Set(
+    results.map((result) => getSourceComparisonKey(result.pageUrl)),
+  );
+  if (uniqueSources.size < 2) {
     return null;
-    //there will be no contradiction as pages has been less than 2(unique)
   }
 
   const contextForCheck = results

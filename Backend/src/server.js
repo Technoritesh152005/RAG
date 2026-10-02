@@ -1,3 +1,4 @@
+import "dotenv/config";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { Server } from "socket.io";
@@ -127,6 +128,9 @@ subRedis.on("message", (channel, message) => {
       pageCount: data.pageCount,
       chunkCount: data.chunkCount,
       error: data.error,
+      embeddingCompleted: data.embeddingCompleted,
+      embeddingTotal: data.embeddingTotal,
+      stage: data.stage,
     });
   }
 });

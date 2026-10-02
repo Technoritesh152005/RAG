@@ -1,7 +1,7 @@
 const MIN_COLUMN_GAP = 20;
 //this tells the mini gap bwn columns. if greater than this then said to be column read
 
-export async function detectColumns({ items, pageWidth }) {
+export function detectColumns(items, pageWidth) {
   if (items.length === 0) return [];
 
   //the page is divided in 5 point buckets or parts
@@ -14,7 +14,7 @@ export async function detectColumns({ items, pageWidth }) {
 
   for (const item of items) {
     const startBucket = Math.floor(item.x / bucketSize);
-    const endBucket = math.floor((item.x + item.width) / bucketSize);
+    const endBucket = Math.floor((item.x + item.width) / bucketSize);
     //fill those space or region with true
     for (
       let b = Math.max(0, startBucket);
@@ -75,7 +75,7 @@ export async function detectColumns({ items, pageWidth }) {
 
 // reads the item of only with or gap that dont lie in columns range
 export function columnAwareReadingOrder(items,pageWidth){
-    const columns = detectColumn(item,pageWidth)
+    const columns = detectColumns(items,pageWidth)
 
     if (columns.length === 1) {
     // no real columns detected — same simple top-to-bottom, left-to-right
@@ -105,3 +105,15 @@ export function columnAwareReadingOrder(items,pageWidth){
 
   return ordered
 }
+
+// detectColumns()
+//         ↓
+// "How many columns does this page have
+//  and where are they?"
+
+//         ↓
+
+// columnAwareReadingOrder()
+//         ↓
+// "Now that I know the columns,
+//  in what order should I read the text?"

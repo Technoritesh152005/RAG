@@ -50,3 +50,16 @@ export function extractVideoUrl(url) {
   }
   return videoId
 }
+
+export function getSourceComparisonKey(sourceUrl) {
+  try {
+    const parsed = new URL(sourceUrl);
+    if (detectSourceTypes(parsed) === "YOUTUBE") {
+      return `YOUTUBE:${extractVideoUrl(parsed)}`;
+    }
+  } catch {
+    // Keep malformed or unsupported URLs distinct by their original value.
+  }
+
+  return `URL:${sourceUrl}`;
+}

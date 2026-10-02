@@ -4,7 +4,7 @@ import redis from "../lib/redis.js";
 import { embedAndStore } from "../modules/jobs/ingestion.job.js";
 import { updateSourceStatus } from "../modules/sources/source.service.js";
 import { crawlSource } from "../modules/crawler/crawler.service.js";
-import { ingestYouTubeSource } from "../modules/youtube/youtube.service.js";
+import { startIngestionForYoutube } from "../modules/youtube/youtube.service.js";
 import prisma from "../lib/prisma.js";
 import { deleteWorkspaceCache } from "../modules/cache/semantic-cache.service.js";
 import { ingestPdfSource } from "../modules/pdf/pdf.service.js";
@@ -35,7 +35,7 @@ const worker = new Worker(
       let chunkCount = 0;
 
       if (sourceType === "YOUTUBE") {
-        const result = await ingestYouTubeSource({
+        const result = await startIngestionForYoutube({
           url,
           sourceId,
           workspaceId,
@@ -85,7 +85,7 @@ const worker = new Worker(
         allChunks = result.allChunks ?? [];
         pageCount = result.pageCount ?? pageCount;
         chunkCount = result.chunkCount ?? allChunks.length;
-      } else {
+      } else if (sourceType === "PDF") {
         const result = await ingestPdfSource({
           sourceId,
           workspaceId,
@@ -96,6 +96,9 @@ const worker = new Worker(
         });
         allChunks = result.allChunks;
         pageCount = result.pageCount;
+        chunkCount = allChunks.length;
+      } else {
+        throw new Error(`Unsupported source type: ${sourceType}`);
       }
 
       console.log(

@@ -26,6 +26,7 @@ model Workspace{
 enum SourceType{
   URL
   YOUTUBE
+  PDF
   
 }
 // url source schema
@@ -56,6 +57,8 @@ model Message {
   content String
   sources Json?
   createdAt DateTime @default(now())
+
+  @@index([workspaceId,createdAt,id])
 }
 
 enum SourceStatus {

@@ -27,15 +27,15 @@ export async function getAllMessages(workspaceId, userId) {
   });
   if (!workspace) throw new Error("Workspace Not Found");
 
-  return prisma.message.findMany({
+  const messages = await prisma.message.findMany({
     where: {
       workspaceId,
     },
-    orderBy: {
-      createdAt: "asc", //take oldest 100 msg first
-    },
-    take: 100, //
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 100,
   });
+
+  return messages.reverse();
 }
 
 export async function deleteWorkspaceMessage(workspaceId, userId) {

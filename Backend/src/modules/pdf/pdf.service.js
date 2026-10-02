@@ -2,21 +2,18 @@ import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-import { extractPdfStructure, naiveReadingOrder } from "./";
-import { downloadPdf } from "../../lib/supabase.storage";
-
-const parentSplitter = new RecursiveCharacterTextSplitter({
-  chunkSize: 1500,
-  chunkOverlap: 100,
-  separators: ["\n\n", "\n", ". ", ""],
-});
-
-const childSplitter = new RecursiveCharacterTextSplitter({
-  chunkSize: 300,
-  overlap: 30,
-  separators: ["\n\n", "\n", ". ", ""],
-});
+import { extractPdfStructure, extractPageLines } from "./pdf-extractor.service.js";
+import { downloadPdf } from "../../lib/supabase.storage.js";
+import {
+  buildFontHistogram,
+  classifyHeadingSizes,
+  reconstructMarkdown,
+  detectDocumentTitle,
+} from "./pdf-heading-detector.service.js";
+import detectHeaderFooterLines, {
+  stripHeaderFooterLines,
+} from "./header-footer-detector.service.js";
+import { chunkPage } from "../crawler/chunker.service.js";
 
 export async function ingestPdfSource({
   sourceId,
@@ -36,15 +33,37 @@ export async function ingestPdfSource({
   await fs.writeFile(tempPath, fileBuffer);
 
   try {
-    if (onProgress) await onProgress({ status: "extracting_pdf" });
+    if (onProgress) await onProgress({ status: "extracting_pdf/" });
+
+    /* What the extract pdf structure does is take a downloadable file  and returns an array of pags
+    where inside each pages  each page pageNumber is given and also its items 
+    coordination along x and y axis*/
     const pages = await extractPdfStructure(tempPath);
 
-    const documentTitle = `Document (${pages.length}) pages`;
-    const pendingChunks = [];
-    // the above can be [  {childTextBatch1, parentText1, prntId,parentId, }]
+    const pagesWithLine = pages.map((page) => ({
+      pageNumber: page.pageNumber,
+      height: page.height,
+      lines: extractPageLines(page),
+    }));
+
+    if (onProgress) await onProgress({ status: "detecting_headings" });
+    const headerFooterSet = await detectHeaderFooterLines(pagesWithLine);
+
+    //basically removes all lines which r in headerFooterSet
+    const cleanedPages = pagesWithLine.map((page) => ({
+      ...page,
+      lines: stripHeaderFooterLines(page.lines, headerFooterSet),
+    }));
+
+    if (onProgress) await onProgress({ status: "detecting_headings" });
+    const histogram = buildFontHistogram(cleanedPages);
+    const { bodySize, sizeLevelMap } = classifyHeadingSizes(histogram);
+    const documentTitle = detectDocumentTitle(cleanedPages, pages.length);
+
+    const allChunks = [];
 
     //all pages are maintained in pages chunks. it looks like array of objects
-    for (const page of pages) {
+    for (const page of cleanedPages) {
       if (onProgress)
         await onProgress({
           stage: "processing_page",
@@ -52,91 +71,57 @@ export async function ingestPdfSource({
           total: pages.length,
         });
 
-      const ordered = naiveReadingOrder(page.items);
-      const pageText = reconstructLines(ordered);
+      const markdown = reconstructMarkdown(page.lines, bodySize, sizeLevelMap);
+      if (!markdown.trim() || markdown.length < 20) continue;
 
-      if (!pageText.trim() || pageText.length < 20) continue;
-
-      const parentChunks = await parentSplitter.splitText(pageText);
-
-      //each parent may have multiple chunks
-      // array.entries gives us [index,content], further u destructur
-      for (const [parentIndex, parentText] of parentChunks.entries()) {
-        const parentId = generateId(
-          `${sourceId}-p${page.pageNumber}-parent-${parentIndex}`,
-        );
-        //return an array of string
-        const childTextsBatch = await childSplitter.splitText(parentText);
-        pendingChunks.push({
-          childTextsBatch,
-          parentText,
-          parentId,
-          parentIndex,
-          page: page.pageNumber,
-        });
-      }
-    }
-
-    //final approach making structured way those chunks
-    const finalChunks = [];
-    for (const pc of pendingChunks) {
-      pc.childTextsBatch.forEach((chunk, chunkIndex) => {
-        if (!chunk.trim()) return;
-        const chunkId = generateId(
-          `${sourceId}-p${pc.page}-${pc.parentIndex}-${chunkIndex}-${chunk}`,
-        );
-        finalChunks.push({
-          id: chunkId,
-          childText: chunk,
-          parentText: pc.parentText,
-          metadata: {
-            sourceId,
-            workspaceId,
-            pageUrl: `document.pdf#page=${pc.page}`,
-            sectionHeading: `Page ${pc.page}`,
-            parentIndex: pc.parentIndex,
-            parentId: pc.parentId,
-            chunkIndex,
-            pageNumber: pc.page,
-          },
-        });
+      // SAME function the doc crawler uses — section-aware splitting
+      // on the headings we just reconstructed, parent/child chunking,
+      // deterministic IDs. Zero duplicate chunking logic between
+      // source types.
+      const pageChunks = await chunkPage({
+        content: markdown,
+        pageUrl: `document.pdf#page=${page.pageNumber}`,
+        pageTitle: documentTitle,
+        sourceId,
+        workspaceId,
       });
-    }
 
+      allChunks.push(...pageChunks);
+    }
     console.log(
-      `PDF ingestion: ${pages.length} pages → ${finalChunks.length} chunks`,
+      `PDF ingestion: ${pages.length} pages, ${headerFooterSet.size} header/footer line(s) stripped, ` +
+        `${sizeLevelMap.size} heading level(s) detected → ${allChunks.length} chunks`,
     );
-    return { allChunks: finalChunks, pageCount: pages.length };
+    return { allChunks, pageCount: pages.length };
   } catch (error) {
-    throw new error();
+    throw error;
   } finally {
     // always clean up the temp copy — the durable original stays in
     // Supabase Storage untouched, available for future re-indexing
     await fs.unlink(tempPath).catch(() => {});
   }
-}
 
-function generateId(str) {
-  return crypto.createHash("md5").update(str).digest("hex");
-}
+  function generateId(str) {
+    return crypto.createHash("md5").update(str).digest("hex");
+  }
 
-function reconstructLines(orderedItems){
-
-    const lines =[]
-    let currentLine = []
-    let lastY = null
-    for(const item of orderedItems){
-
-        //the current item and last y if diff is greater than 3 then its said to be in new line
-        if(lastY !== null && Math.abs(item.y - lastY)>3){
-            lines.push(currentLine.map(i=>i.text).join(' '))
-            currentLine = [];
-        }
-        //if not then push in same line
-        currentLine.push(item)
-        lastY = item.y
+  function reconstructLines(orderedItems) {
+    const lines = [];
+    let currentLine = [];
+    let lastY = null;
+    for (const item of orderedItems) {
+      //the current item and last y if diff is greater than 3 then its said to be in new line
+      if (lastY !== null && Math.abs(item.y - lastY) > 3) {
+        lines.push(currentLine.map((i) => i.text).join(" "));
+        currentLine = [];
+      }
+      //if not then push in same line
+      currentLine.push(item);
+      lastY = item.y;
     }
     //last meh kuch toh reh jayega if not found differentiator of y coordinates
-    if (currentLine.length > 0) lines.push(currentLine.map(i => i.text).join(' '))
-    return lines.join('\n')
+    if (currentLine.length > 0)
+      lines.push(currentLine.map((i) => i.text).join(" "));
+    return lines.join("\n");
+  }
 }

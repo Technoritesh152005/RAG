@@ -1,12 +1,12 @@
 import { z } from "zod";
 import crypto from "crypto";
-import { authenticateMiddleware } from "../auth/auth_middleware";
+import { authenticateMiddleware } from "../auth/auth_middleware.js";
+import prisma from "../../lib/prisma.js";
 import {
   createSignedUploadUrl,
   checkPdfExist,
-  deletePdf,
-} from "./source.service";
-import { addIngestionQueue } from "../jobs/ingestion.job";
+} from "../../lib/supabase.storage.js";
+import { addIngestionQueue } from "../jobs/queue.js";
 
 const MAX_SIZE_BYTES = 25 * 1024 * 1024; //25 mb
 const initSchema = z.object({
@@ -20,14 +20,14 @@ export async function registerPdfUploadRoutes(fastify) {
   //client ask a place to upload a url=> generate a signedupload url
   fastify.post(
     "/:workspaceId/sources/pdf/init-upload",
-    async (request, response) => {
+    async (request, reply) => {
       try {
         const workspaceId = request.params.workspaceId;
         //check whetehr the requested user only has this workspace
         const workspace = await prisma.workspace.findFirst({
           where: {
             id: workspaceId,
-            userId: request.use.Id,
+            userId: request.user.id,
           },
         });
         if (!workspace)
@@ -43,21 +43,39 @@ export async function registerPdfUploadRoutes(fastify) {
           });
         }
 
-        const sourceId = crypto.randomUUID();
-        const storagePath = `${workspaceId}/${sourceId}.pdf`;
-
-        const source = await prisma.source.create({
-          data: {
-            id: sourceId,
+        const existingSource = await prisma.source.findFirst({
+          where: {
             url: body.filename,
-            sourceType: "PDF",
-            storagePath,
             workspaceId,
-            status: "PENDING",
           },
         });
+        if (
+          existingSource &&
+          (existingSource.sourceType !== "PDF" ||
+            existingSource.status !== "PENDING")
+        ) {
+          return reply.status(409).send({
+            error: "A source with this name is already in this workspace.",
+          });
+        }
+
+        const sourceId = existingSource?.id ?? crypto.randomUUID();
+        const storagePath =
+          existingSource?.storagePath ?? `${workspaceId}/${sourceId}.pdf`;
 
         const { signedUrl, token } = await createSignedUploadUrl(storagePath);
+        if (!existingSource) {
+          await prisma.source.create({
+            data: {
+              id: sourceId,
+              url: body.filename,
+              sourceType: "PDF",
+              storagePath,
+              workspaceId,
+              status: "PENDING",
+            },
+          });
+        }
 
         return reply.status(200).send({
           sourceId,
@@ -93,7 +111,7 @@ export async function registerPdfUploadRoutes(fastify) {
           //delete the metadata
           await prisma.source.delete({
             where: {
-              id: source.Id,
+              id: source.id,
             },
           });
           return reply.status(400).send({
@@ -103,7 +121,7 @@ export async function registerPdfUploadRoutes(fastify) {
         }
 
         //if exist add in ingestion job to further chunk this opration nd perform operation
-        await addIngestionJob({
+        await addIngestionQueue({
             sourceId:source.id,
             workspaceId:request.params.workspaceId,
             url:source.url,
@@ -113,7 +131,7 @@ export async function registerPdfUploadRoutes(fastify) {
 
         return reply.send({ message: 'Upload confirmed, indexing started', source })
       } catch (error) {
-        
+        return reply.status(500).send({ error: error.message });
       }
     },
   );
