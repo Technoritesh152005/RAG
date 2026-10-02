@@ -1,11 +1,11 @@
-import {youtubeTranscript} from "youtube-transcript";
+import { fetchTranscript as fetchYoutubeTranscript } from "youtube-transcript";
 
 
 // returns transcription only when manual or auto generated  transctipts exist
 export async function fetchTranscript(videoId){
 
     try{
-        const raw = await youtubeTranscript.fetchTranscript(videoId)
+        const raw = await fetchYoutubeTranscript(videoId)
         // return transcript in format [ {},{}]
 
         if(!raw || raw.length === 0)return null

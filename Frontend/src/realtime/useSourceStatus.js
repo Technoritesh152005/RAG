@@ -33,6 +33,9 @@ export function useSourceStatus(workspaceId) {
               embeddingCompleted:
                 update.embeddingCompleted ?? source.embeddingCompleted,
               embeddingTotal: update.embeddingTotal ?? source.embeddingTotal,
+              stage:
+                update.stage ??
+                (update.status === source.status ? source.stage : null),
               error: update.error ?? null,
             };
           });

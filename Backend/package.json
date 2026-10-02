@@ -1,5 +1,9 @@
 {
   "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "worker": "node src/worker/worker.config.js"
+  },
   "dependencies": {
     "@distube/ytdl-core": "^4.16.12",
     "@fastify/cors": "^11.3.0",
@@ -21,6 +25,7 @@
     "groq-sdk": "^1.6.0",
     "ioredis": "^5.11.1",
     "jsdom": "^26.0.0",
+    "pdfjs-dist": "^6.3.289",
     "prisma": "^6.19.3",
     "socket.io": "^4.8.3",
     "youtube-transcript": "^1.3.1",

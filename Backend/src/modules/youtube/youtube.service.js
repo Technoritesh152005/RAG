@@ -1,15 +1,15 @@
-import { extractYoutubeVideoId } from "../sources/url-detector.service";
-import { fetchTranscript, fetchVideoMetadata } from "./transcript.service";
-import { chunkTranscript } from "./youtube.chunker";
-import { transcribeAudioFallback } from "./audio-transcribe.service";
-import { logUsage } from "../../usage/usage.service";
+import { extractVideoUrl } from "../sources/url-detector.service.js";
+import { fetchTranscript, fetchVideoMetadata } from "./transcript.service.js";
+import { chunkTranscript } from "./youtube.chunker.js";
+import { transcribeAudioFallback } from "./audio-transcribe.service.js";
+import { logUsage } from "../analytics/usage.service.js";
 export async function startIngestionForYoutube({
   url,
   sourceId,
   workspaceId,
   onProgress,
 }) {
-  const videoId = extractYoutubeVideoId(url);
+  const videoId = extractVideoUrl(url);
   if (!videoId)
     throw new Error(
       "Could not extract the id from the url. Please try with diffrent Url",
@@ -19,14 +19,11 @@ export async function startIngestionForYoutube({
   const { title } = await fetchVideoMetadata(videoId);
 
   if (onProgress) await onProgress({ stage: "fetching_transcript" });
-  const segments = await fetchTranscript(videoId);
+  let segments = await fetchTranscript(videoId);
   let transcriptionMethod = segments ? "captions" : "whisper";
 
   if (!segments) {
     //taking a backup approach to transcribe the audio if no captions exist
-    //ask user do u need to transcribe the audio using whisper fallback
-    const confirm = request.body;
-    if (!confirm) return;
     segments = await transcribeAudioFallback(videoId, onProgress);
   }
 
