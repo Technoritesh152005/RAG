@@ -176,25 +176,54 @@ export default function WorkspaceAnalytics({ workspaceId }) {
       {/* KPI Cards Grid */}
       <div className="kpi-grid">
         <div className="kpi-card">
-          <span className="kpi-label">Total AI Queries</span>
+          <div className="kpi-card-header">
+            <span className="kpi-label">Total AI Queries</span>
+            <div className="kpi-icon-badge">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            </div>
+          </div>
           <span className="kpi-val">{totalRequests}</span>
           <span className="kpi-sub">Total workspace queries</span>
         </div>
 
         <div className="kpi-card">
-          <span className="kpi-label">Cache Hit Rate</span>
+          <div className="kpi-card-header">
+            <span className="kpi-label">Cache Hit Rate</span>
+            <div className="kpi-icon-badge is-green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
+            </div>
+          </div>
           <span className="kpi-val text-green">{hitRatePct}%</span>
           <span className="kpi-sub">{cache.hits ?? 0} hits / {cache.misses ?? 0} misses</span>
         </div>
 
         <div className="kpi-card">
-          <span className="kpi-label">Avg Response Speed</span>
-          <span className="kpi-val">{latencyLabel(usage.avgLatencyMs)}</span>
+          <div className="kpi-card-header">
+            <span className="kpi-label">Avg Response Speed</span>
+            <div className="kpi-icon-badge is-blue">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
+          </div>
+          <span className="kpi-val text-blue">{latencyLabel(usage.avgLatencyMs)}</span>
           <span className="kpi-sub">P95: {latencyLabel(usage.p95LatencyMs)}</span>
         </div>
 
         <div className="kpi-card">
-          <span className="kpi-label">LLM Calls Saved</span>
+          <div className="kpi-card-header">
+            <span className="kpi-label">LLM Calls Saved</span>
+            <div className="kpi-icon-badge is-indigo">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+            </div>
+          </div>
           <span className="kpi-val text-indigo">{llmSaved}</span>
           <span className="kpi-sub">Served from semantic cache</span>
         </div>

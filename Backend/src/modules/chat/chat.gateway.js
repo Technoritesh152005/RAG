@@ -2,10 +2,9 @@ import {
   saveMessage,
   getAllMessages,
   deleteWorkspaceMessage,
+  getOlderMessage,
 } from "./chat.service.js";
-import{
-  checkAndGenerateFAQ
-}from './faq.service.js'
+import { checkAndGenerateFAQ } from "./faq.service.js";
 import { runRAGPipeline } from "./rag.service.js";
 import prisma from "../../lib/prisma.js";
 
@@ -42,8 +41,8 @@ export async function registerChatGateway(socketInstance) {
         return;
       }
 
-      recentTimestamps.push(now)
-       messageTimestamps.set(userId, recentTimestamps)
+      recentTimestamps.push(now);
+      messageTimestamps.set(userId, recentTimestamps);
       if (!workspaceId || !question || !question.trim()) {
         socket.emit("chat:error", { message: "Invalid question or Workspace" });
         return;
@@ -102,14 +101,14 @@ export async function registerChatGateway(socketInstance) {
           onMetadata: (metadata) => {
             finalCitations = metadata.citations || [];
             socket.emit("chat:metadata", {
-                citations: metadata.citations,
-                hasContradiction: metadata.hasContradiction,
-                contradictions: metadata.contradictions,
-                confident: metadata.confident,
-                reason: metadata.reason,
-                cached: metadata.cached,
-                cacheSimilarity: metadata.cacheSimilarity,
-              });
+              citations: metadata.citations,
+              hasContradiction: metadata.hasContradiction,
+              contradictions: metadata.contradictions,
+              confident: metadata.confident,
+              reason: metadata.reason,
+              cached: metadata.cached,
+              cacheSimilarity: metadata.cacheSimilarity,
+            });
           },
 
           onToken: (answer) => {
@@ -127,7 +126,7 @@ export async function registerChatGateway(socketInstance) {
             });
 
             //after rag completion check or generate faqs
-            await checkAndGenerateFAQ(workspaceId).catch(()=>{})
+            await checkAndGenerateFAQ(workspaceId).catch(() => {});
 
             socket.emit("chat:done", {
               answer: completeAnswer,
@@ -158,14 +157,39 @@ export async function registerChatGateway(socketInstance) {
     socket.on("chat:history", async ({ workspaceId }) => {
       try {
         const messages = await getAllMessages(workspaceId, socket.user.id);
-        socket.emit("chat:history:load", { messages });
+        socket.emit("chat:history:load", { workspaceId, messages });
       } catch (error) {
-        console.error(
-          "Failed to retrieve all the messages of this Workspace",
-          error.message,
-        );
+        socket.emit("chat:history:error", {
+          workspaceId,
+          message: error.message,
+        });
       }
     });
+
+    socket.on(
+      "chat:history:older",
+      async ({ workspaceId, beforeMessageId, requestId }) => {
+        try {
+          const history = await getOlderMessage(
+            workspaceId,
+            socket.user.id,
+            beforeMessageId,
+          );
+          socket.emit("chat:history:older:load", {
+            workspaceId,
+            beforeMessageId,
+            requestId,
+            ...history,
+          });
+        } catch (error) {
+          socket.emit("chat:history:older:error", {
+            workspaceId,
+            requestId,
+            message: error.message,
+          });
+        }
+      },
+    );
 
     socket.on("chat:clear", async ({ workspaceId }) => {
       console.log(`Deleting whole workspace chat for ${workspaceId}`);

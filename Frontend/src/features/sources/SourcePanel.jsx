@@ -9,12 +9,12 @@ import {
   uploadPdfSource,
 } from "../../api/source.api";
 import { useSourceStatus } from "../../realtime/useSourceStatus";
-import { MutationFeedback, QueryFeedback } from "../../components/asyncFeedback";
+import { MutationFeedback, QueryFeedback, ConfirmModal } from "../../components/asyncFeedback";
 
 const ADD_SOURCE_TABS = [
-  { value: "PDF", label: "UPLOAD PDF", icon: "upload" },
-  { value: "WEB", label: "WEB URL", icon: "web" },
-  { value: "YOUTUBE", label: "YOUTUBE", icon: "youtube" },
+  { value: "PDF", label: "Upload PDF", icon: "upload" },
+  { value: "WEB", label: "Web URL", icon: "web" },
+  { value: "YOUTUBE", label: "YouTube", icon: "youtube" },
 ];
 
 export default function SourcePanel({ workspaceId }) {
@@ -28,6 +28,7 @@ export default function SourcePanel({ workspaceId }) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [formError, setFormError] = useState("");
   const [walkthroughSourceId, setWalkthroughSourceId] = useState(null);
+  const [deleteTargetSourceId, setDeleteTargetSourceId] = useState(null);
 
   const sourcesQuery = useQuery({
     queryKey: queryKeys.sources(workspaceId),
@@ -246,14 +247,7 @@ export default function SourcePanel({ workspaceId }) {
   }
 
   function handleDelete(sourceId) {
-    if (
-      !window.confirm(
-        "Delete this source and its indexed data? This action cannot be undone.",
-      )
-    ) {
-      return;
-    }
-    deleteSourceMutation.mutate(sourceId);
+    setDeleteTargetSourceId(sourceId);
   }
 
   if (!workspaceId) {
@@ -320,10 +314,6 @@ export default function SourcePanel({ workspaceId }) {
           <p>Add a website, documentation section, or YouTube video to workspace search.</p>
         </div>
         <div className="source-header-actions">
-          <div className={`live-status-pill ${connected ? "connected" : ""}`}>
-            <span className="live-dot" />
-            <span>{connected ? "Live sync connected" : "Connecting..."}</span>
-          </div>
           <button
             type="button"
             className="add-source-open"
@@ -384,26 +374,25 @@ export default function SourcePanel({ workspaceId }) {
                       setFormError("");
                     }}
                   >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      {tab.icon === "upload" && (
-                        <>
-                          <path d="M12 16V4m0 0L8 8m4-4 4 4" />
-                          <path d="M5 14v5h14v-5" />
-                        </>
-                      )}
-                      {tab.icon === "web" && (
-                        <>
-                          <circle cx="12" cy="12" r="9" />
-                          <path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" />
-                        </>
-                      )}
-                      {tab.icon === "youtube" && (
-                        <>
-                          <rect x="3" y="5" width="18" height="14" rx="4" />
-                          <path d="m10 9 5 3-5 3z" />
-                        </>
-                      )}
-                    </svg>
+                    {tab.icon === "upload" && (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <path d="M12 18v-6m0 0l-3 3m3-3l3 3" />
+                      </svg>
+                    )}
+                    {tab.icon === "web" && (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="2" y1="12" x2="22" y2="12" />
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                      </svg>
+                    )}
+                    {tab.icon === "youtube" && (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="#ef4444" aria-hidden="true">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                      </svg>
+                    )}
                     <span>{tab.label}</span>
                     {tab.disabled && <small>SOON</small>}
                   </button>
@@ -439,9 +428,10 @@ export default function SourcePanel({ workspaceId }) {
                       selectPdfFile(event.dataTransfer.files?.[0]);
                     }}
                   >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" />
-                      <path d="M5 14v5h14v-5" />
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <path d="M12 18v-6m0 0l-3 3m3-3l3 3" />
                     </svg>
                     <strong>{pdfFile?.name ?? "Drop your PDF here"}</strong>
                     <span className="pdf-dropzone-detail">
@@ -456,35 +446,35 @@ export default function SourcePanel({ workspaceId }) {
                   <p className="add-source-hint">Your document will be securely uploaded and indexed for workspace search.</p>
                 </div>
               ) : (
-              <div className="add-source-entry">
-                <label htmlFor="source-url">
-                  {sourceKind === "YOUTUBE" ? "YouTube video URL" : "Web URL / Docs URL"}
-                </label>
-                <input
-                  id="source-url"
-                  type="url"
-                  value={url}
-                  onChange={(event) => setUrl(event.target.value)}
-                  placeholder={
-                    sourceKind === "YOUTUBE"
-                      ? "https://www.youtube.com/watch?v=..."
-                      : "https://docs.example.com/guide/getting-started"
-                  }
-                  required
-                  autoFocus
-                />
-                <p className="add-source-hint">
-                  {sourceKind === "YOUTUBE"
-                    ? "A single public video link. Captions are indexed with timestamped references."
-                    : "Add a public webpage or a specific documentation section."}
-                </p>
-              </div>
-                )}
+                <div className="add-source-entry">
+                  <label htmlFor="source-url">
+                    {sourceKind === "YOUTUBE" ? "YouTube video URL" : "Web URL / Docs URL"}
+                  </label>
+                  <input
+                    id="source-url"
+                    type="url"
+                    value={url}
+                    onChange={(event) => setUrl(event.target.value)}
+                    placeholder={
+                      sourceKind === "YOUTUBE"
+                        ? "https://www.youtube.com/watch?v=..."
+                        : "https://docs.example.com/guide/getting-started"
+                    }
+                    required
+                    autoFocus
+                  />
+                  <p className="add-source-hint">
+                    {sourceKind === "YOUTUBE"
+                      ? "A single public video link. Captions are indexed with timestamped references."
+                      : "Add a public webpage or a specific documentation section."}
+                  </p>
+                </div>
+              )}
 
               {formError && <p className="form-error-msg" role="alert">{formError}</p>}
               <MutationFeedback
-                  mutation={sourceKind === "PDF" ? uploadPdfMutation : addSourceMutation}
-                  pendingMessage={sourceKind === "PDF" ? "Uploading PDF and starting indexing..." : "Adding source to indexing queue..."}
+                mutation={sourceKind === "PDF" ? uploadPdfMutation : addSourceMutation}
+                pendingMessage={sourceKind === "PDF" ? "Uploading PDF and starting indexing..." : "Adding source to indexing queue..."}
                 successMessage="Source added and queued for processing."
               />
 
@@ -516,112 +506,126 @@ export default function SourcePanel({ workspaceId }) {
         </div>
       )}
 
+      {/* Floating Animated Walkthrough Modal Card */}
       {walkthroughSource && (
-        <section
-          className={`indexing-walkthrough ${walkthroughStatus === "FAILED" ? "is-failed" : ""} ${walkthroughStatus === "DONE" ? "is-done" : ""}`}
-          aria-live="polite"
-          aria-labelledby="indexing-walkthrough-title"
+        <div
+          className="walkthrough-modal-backdrop"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setWalkthroughSourceId(null);
+          }}
         >
-          <div className="walkthrough-heading">
-            <div className="walkthrough-heading-copy">
-              <p className="walkthrough-eyebrow">DOCUFLUX / LIVE INDEXING</p>
-              <h3 id="indexing-walkthrough-title">
-                {walkthroughStatus === "DONE"
-                  ? "Your source is ready"
-                  : walkthroughStatus === "FAILED"
-                    ? "This source needs attention"
-                    : "Here’s what DocuFlux is doing"}
-              </h3>
-              <p className="walkthrough-url" title={walkthroughSource.url}>
-                {walkthroughSource.url}
-              </p>
+          <section
+            className={`indexing-walkthrough-modal ${walkthroughStatus === "FAILED" ? "is-failed" : ""} ${walkthroughStatus === "DONE" ? "is-done" : ""}`}
+            aria-live="polite"
+            aria-labelledby="indexing-walkthrough-title"
+          >
+            <div className="walkthrough-heading">
+              <div className="walkthrough-heading-copy">
+                <p className="walkthrough-eyebrow">DOCUFLUX / LIVE INDEXING STATUS</p>
+                <h3 id="indexing-walkthrough-title">
+                  {walkthroughStatus === "DONE"
+                    ? "Your source is ready!"
+                    : walkthroughStatus === "FAILED"
+                      ? "Indexing needs attention"
+                      : "Processing & Indexing Source..."}
+                </h3>
+                <p className="walkthrough-url" title={walkthroughSource.url}>
+                  {walkthroughSource.url}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="walkthrough-close-btn"
+                onClick={() => setWalkthroughSourceId(null)}
+                title="Dismiss status card"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
-            <button
-              type="button"
-              className="walkthrough-skip"
-              onClick={() => setWalkthroughSourceId(null)}
-            >
-              {walkthroughStatus === "DONE" || walkthroughStatus === "FAILED"
-                ? "Dismiss"
-                : "Skip animation"}
-            </button>
-          </div>
 
-          <div className="walkthrough-steps">
-            {indexingSteps.map((step, index) => {
-              const completed = walkthroughStatus === "DONE" || index < activeStep;
-              const active = walkthroughStatus !== "DONE" &&
-                walkthroughStatus !== "FAILED" && index === activeStep;
+            <div className="walkthrough-steps">
+              {indexingSteps.map((step, index) => {
+                const completed = walkthroughStatus === "DONE" || index < activeStep;
+                const active = walkthroughStatus !== "DONE" &&
+                  walkthroughStatus !== "FAILED" && index === activeStep;
 
-              return (
-                <div
-                  className={`walkthrough-step ${completed ? "is-complete" : ""} ${active ? "is-active" : ""}`}
-                  key={step.key}
-                >
-                  <span className="walkthrough-step-mark" aria-hidden="true">
-                    {completed ? "✓" : String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span className="walkthrough-step-copy">
-                    <strong>{step.title}</strong>
-                    <small>{step.detail}</small>
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+                return (
+                  <div
+                    className={`walkthrough-step ${completed ? "is-complete" : ""} ${active ? "is-active" : ""}`}
+                    key={step.key}
+                  >
+                    <span className="walkthrough-step-mark" aria-hidden="true">
+                      {completed ? "✓" : String(index + 1).padStart(2, "0")}
+                    </span>
+                    <span className="walkthrough-step-copy">
+                      <strong>{step.title}</strong>
+                      <small>{step.detail}</small>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
 
-          <div className="walkthrough-live-line">
-            <span className="walkthrough-live-indicator" aria-hidden="true" />
-            {walkthroughStatus === "PENDING" && "Your source is queued. A worker will start reading it shortly."}
-            {walkthroughStatus === "SCRAPING" && (
-              <>
-                {isYoutubeWalkthrough
-                  ? youtubeStageMessages[walkthroughSource.stage] ??
-                    "Reading video details and transcript"
-                  : walkthroughSource.pageCount
-                    ? `Reading pages · ${walkthroughSource.pageCount} found`
-                    : "Opening the section and reading its pages"}
-                {walkthroughSource.chunkCount != null &&
-                  ` · ${walkthroughSource.chunkCount} passages found`}
-              </>
+            <div className="walkthrough-live-line">
+              <span className="walkthrough-live-indicator" aria-hidden="true" />
+              {walkthroughStatus === "PENDING" && "Your source is queued. A worker will start reading it shortly."}
+              {walkthroughStatus === "SCRAPING" && (
+                <>
+                  {isYoutubeWalkthrough
+                    ? youtubeStageMessages[walkthroughSource.stage] ??
+                      "Reading video details and transcript"
+                    : walkthroughSource.pageCount
+                      ? `Reading pages · ${walkthroughSource.pageCount} found`
+                      : "Opening the section and reading its pages"}
+                  {walkthroughSource.chunkCount != null &&
+                    ` · ${walkthroughSource.chunkCount} passages found`}
+                </>
+              )}
+              {walkthroughStatus === "CHUNKING" &&
+                (isYoutubeWalkthrough
+                  ? "Preparing timestamped transcript passages"
+                  : `Splitting pages into searchable passages${walkthroughSource.pageCount ? ` · ${walkthroughSource.pageCount} pages read` : ""}`)}
+              {walkthroughStatus === "EMBEDDING" && (
+                <>
+                  {embeddingProgress != null
+                    ? `Making ${walkthroughSource.embeddingTotal} passages searchable · ${embeddingProgress}% complete`
+                    : "Splitting the content into passages and making it searchable"}
+                  {walkthroughSource.embeddingCompleted != null &&
+                    ` · ${walkthroughSource.embeddingCompleted}/${walkthroughSource.embeddingTotal} embedded`}
+                </>
+              )}
+              {walkthroughStatus === "DONE" && (
+                isYoutubeWalkthrough
+                  ? `Ready to chat · ${walkthroughSource.chunkCount ?? 0} passages`
+                  : `Ready to chat · ${walkthroughSource.pageCount ?? 0} pages · ${walkthroughSource.chunkCount ?? 0} passages`
+              )}
+              {walkthroughStatus === "FAILED" &&
+                (walkthroughSource.error || "Indexing failed. Check the source URL and try again.")}
+            </div>
+
+            {walkthroughStatus === "EMBEDDING" && walkthroughSource.embeddingTotal > 0 && (
+              <progress
+                className="walkthrough-progress"
+                max={walkthroughSource.embeddingTotal}
+                value={walkthroughSource.embeddingCompleted ?? 0}
+                aria-label="Embedding progress"
+              />
             )}
-            {walkthroughStatus === "CHUNKING" &&
-              (isYoutubeWalkthrough
-                ? "Preparing timestamped transcript passages"
-                : `Splitting pages into searchable passages${walkthroughSource.pageCount ? ` · ${walkthroughSource.pageCount} pages read` : ""}`)}
-            {walkthroughStatus === "EMBEDDING" && (
-              <>
-                {embeddingProgress != null
-                  ? `Making ${walkthroughSource.embeddingTotal} passages searchable · ${embeddingProgress}% complete`
-                  : "Splitting the content into passages and making it searchable"}
-                {walkthroughSource.embeddingCompleted != null &&
-                  ` · ${walkthroughSource.embeddingCompleted}/${walkthroughSource.embeddingTotal} embedded`}
-              </>
-            )}
-            {walkthroughStatus === "DONE" && (
-              isYoutubeWalkthrough
-                ? `Ready to chat · ${walkthroughSource.chunkCount ?? 0} passages`
-                : `Ready to chat · ${walkthroughSource.pageCount ?? 0} pages · ${walkthroughSource.chunkCount ?? 0} passages`
-            )}
-            {walkthroughStatus === "FAILED" &&
-              (walkthroughSource.error || "Indexing failed. Check the source URL and try again.")}
-          </div>
 
-          {walkthroughStatus === "EMBEDDING" && walkthroughSource.embeddingTotal > 0 && (
-            <progress
-              className="walkthrough-progress"
-              max={walkthroughSource.embeddingTotal}
-              value={walkthroughSource.embeddingCompleted ?? 0}
-              aria-label="Embedding progress"
-            />
-          )}
-
-          {walkthroughStatus !== "DONE" && walkthroughStatus !== "FAILED" && (
-            <p className="walkthrough-skip-note">
-              You can leave this here or skip the walkthrough. Indexing continues either way.
-            </p>
-          )}
-        </section>
+            <div className="walkthrough-modal-footer">
+              <button
+                type="button"
+                className="primary-action-white"
+                onClick={() => setWalkthroughSourceId(null)}
+              >
+                {walkthroughStatus === "DONE" ? "Done" : "Dismiss"}
+              </button>
+            </div>
+          </section>
+        </div>
       )}
 
       {/* Sources List & Details */}
@@ -638,16 +642,30 @@ export default function SourcePanel({ workspaceId }) {
             const isDone = source.status === "DONE";
             const isFailed = source.status === "FAILED";
             const isYoutube = source.sourceType === "YOUTUBE";
+            const isPdf = source.sourceType === "PDF";
 
             return (
               <div key={source.id} className="source-item-card">
                 <div className="source-main-info">
                   <div className="source-url-row">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="link-icon">
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="2" y1="12" x2="22" y2="12" />
-                      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                    </svg>
+                    {isYoutube ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="#ef4444" className="source-type-icon youtube-icon" aria-hidden="true">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                      </svg>
+                    ) : isPdf ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="source-type-icon pdf-icon" aria-hidden="true">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <path d="M9 13h6" />
+                        <path d="M9 17h3" />
+                      </svg>
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="source-type-icon web-icon" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="2" y1="12" x2="22" y2="12" />
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                      </svg>
+                    )}
                     <a
                       href={source.url}
                       target="_blank"
@@ -661,15 +679,15 @@ export default function SourcePanel({ workspaceId }) {
                   <div className="source-meta-row">
                     <span className={`status-pill ${isDone ? "status-active" : isFailed ? "status-failed" : "status-grey"}`}>
                       <span className="status-dot" />
-                      <span>{source.status}</span>
+                      <span>{isDone ? "Ready" : isFailed ? "Failed" : source.status}</span>
                     </span>
 
                     <span className="meta-fact">
                       {isYoutube
                         ? "YouTube video"
-                        : source.sourceType === "PDF"
-                          ? "PDF"
-                          : "Website"}
+                        : isPdf
+                          ? "PDF document"
+                          : "Website URL"}
                     </span>
 
                     {!isYoutube && source.pageCount != null && (
@@ -733,6 +751,22 @@ export default function SourcePanel({ workspaceId }) {
         mutation={deleteSourceMutation}
         pendingMessage="Deleting source..."
         successMessage="Source deleted."
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(deleteTargetSourceId)}
+        title="Delete Documentation Source?"
+        message="This will permanently remove this source and all its indexed passages from workspace search."
+        confirmLabel="Delete Source"
+        isPending={deleteSourceMutation.isPending}
+        onConfirm={() => {
+          if (deleteTargetSourceId) {
+            deleteSourceMutation.mutate(deleteTargetSourceId, {
+              onSettled: () => setDeleteTargetSourceId(null),
+            });
+          }
+        }}
+        onCancel={() => setDeleteTargetSourceId(null)}
       />
     </div>
   );

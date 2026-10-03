@@ -166,7 +166,7 @@ model EvalResult{
   retrievedUrls    Json     // pages actually retrieved, in rank order
   hit              Boolean  // was any expected page in retrieved set
   reciprocalRank   Float    // 0 if miss, 1/rank if hit
-  judgeScore       Float    // 0-1
+  judgeScore       Float?   // 0-1; null if judge scoring fails
   judgeReasoning   String   @db.Text
   confident        Boolean
   latencyMs        Int

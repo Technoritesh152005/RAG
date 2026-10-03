@@ -1,7 +1,5 @@
 import httpClient from "./backendConnection";
 
-import httpClient from "./backendConnection";
-
 export async function getEvaluationCases(workspaceId) {
   const response = await httpClient.get(
     `/api/workspaces/${workspaceId}/eval/cases`,
@@ -39,6 +37,7 @@ export async function runEvaluation(workspaceId, label) {
   const response = await httpClient.post(
     `/api/workspaces/${workspaceId}/eval/run`,
     { label },
+    { timeout: 0 },
   );
 
   return response.data.run;

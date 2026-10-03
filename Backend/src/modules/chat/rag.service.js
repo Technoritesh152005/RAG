@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import { hybridSearch } from "../vector-store/hybrid.service.js";
 import { generateTextFAQs, streamAnswer } from "../chat/groq.service.js";
 import { logUsage, estimateTokens } from "../analytics/usage.service.js";
@@ -14,6 +16,22 @@ export async function runRAGPipeline({
   usageType = "CHAT",
   skipCache = false,
 }) {
+  const requestId = randomUUID();
+  const pipelineStart = performance.now();
+  const metrics = {
+    retrievalMs: null,
+    contradictionDetectionMs: null,
+    answerGenerationMs: null,
+    ttftMs: null,
+    generationDurationMs: null,
+    outputTokens: null,
+    tokensPerSecond: null,
+    distinctSourceCount: 0,
+    contradictionDetectionSkipped: null,
+    contradictionFound: false,
+  };
+
+  try {
   const startTime = Date.now();
   console.log(`RAG pipeline started for: ${question}`);
 
@@ -23,6 +41,15 @@ export async function runRAGPipeline({
   if (!skipCache) {
     const cached = await lookUpCache(questionEmbedding, workspaceId);
     if (cached.hit) {
+      metrics.retrievalMs = 0;
+      metrics.contradictionDetectionMs = 0;
+      metrics.answerGenerationMs = 0;
+      metrics.generationDurationMs = 0;
+      metrics.outputTokens = estimateTokens(cached.answer);
+      metrics.distinctSourceCount = countDistinctSources(cached.citations ?? []);
+      metrics.contradictionDetectionSkipped = true;
+      metrics.contradictionFound = Boolean(cached.contradiction);
+
       onMetadata({
         citations: cached.citations,
         hasContradiction: Boolean(cached.contradiction),
@@ -47,6 +74,7 @@ export async function runRAGPipeline({
           cacheHit: true,
           cacheSimilarity: cached.similarity,
           originalQuestion: cached.originalQuestion,
+          ragMetrics: { ...metrics },
         },
       });
 
@@ -59,18 +87,31 @@ export async function runRAGPipeline({
 
   /* Step 1 : Hybrid search=> search through both vector and keyword postgres based search */
   const retrievalStart = Date.now();
-  const { results, confident, reason } = await hybridSearch(
-    question,
-    workspaceId,
-    undefined,
-    questionEmbedding,
-  );
+  let results;
+  let confident;
+  let reason;
+  try {
+    ({ results, confident, reason } = await hybridSearch(
+      question,
+      workspaceId,
+      undefined,
+      questionEmbedding,
+    ));
+  } finally {
+    metrics.retrievalMs = Date.now() - retrievalStart;
+  }
+  metrics.distinctSourceCount = countDistinctSources(results ?? []);
   console.log(`[Latency][RAG] hybridSearchMs=${Date.now() - retrievalStart}`);
 
   /* Generating fallback answer */
   if (!confident || results.length == 0) {
+    metrics.contradictionDetectionMs = 0;
+    metrics.contradictionDetectionSkipped = true;
+    metrics.answerGenerationMs = 0;
+    metrics.generationDurationMs = 0;
     const fallbackStart = Date.now();
     const fallbackAnswer = buildFallbackAnswer(results);
+    metrics.outputTokens = estimateTokens(fallbackAnswer);
 
     //citation means the source of data means ur answer came that is okay but show me source
     onMetadata({
@@ -94,7 +135,11 @@ export async function runRAGPipeline({
       llmInputTokens: 0,
       llmOutputTokens: estimateTokens(fallbackAnswer),
       latencyMs: Date.now() - startTime,
-      metadata: { confident: false, question },
+      metadata: {
+        confident: false,
+        question,
+        ragMetrics: { ...metrics },
+      },
     });
     return;
   }
@@ -103,7 +148,18 @@ export async function runRAGPipeline({
   /* After hybrid search gives you the top 5 chunks, check whether any of those chunks from different sources appear to make opposing claims.if they do we ask llm to generalize it */
 
   const contradictionStart = Date.now();
-  const contradiction = await detectContradiction(question, results);
+  metrics.contradictionDetectionSkipped = metrics.distinctSourceCount < 2;
+  let contradiction = null;
+  if (!metrics.contradictionDetectionSkipped) {
+    try {
+      contradiction = await detectContradiction(question, results);
+    } finally {
+      metrics.contradictionDetectionMs = Date.now() - contradictionStart;
+    }
+  } else {
+    metrics.contradictionDetectionMs = 0;
+  }
+  metrics.contradictionFound = Boolean(contradiction);
   console.log(
     `[Latency][RAG] contradictionDetectionMs=${Date.now() - contradictionStart}`,
   );
@@ -143,12 +199,34 @@ export async function runRAGPipeline({
   /* Step 6 : get the response(STREAM ANSWER) */
   console.log("Streaming answer from GROQ");
   const answerStart = Date.now();
+  const answerStartMonotonic = performance.now();
+  let firstTokenAt = null;
 
   await streamAnswer({
     systemPrompt,
     userPrompt,
-    onToken,
+    onToken: (token) => {
+      if (firstTokenAt === null) {
+        firstTokenAt = performance.now();
+        metrics.ttftMs = elapsedMs(answerStartMonotonic);
+      }
+      onToken(token);
+    },
     onDone: async (complete) => {
+      metrics.answerGenerationMs = elapsedMs(answerStartMonotonic);
+      metrics.generationDurationMs = firstTokenAt
+        ? elapsedMs(firstTokenAt)
+        : 0;
+      metrics.outputTokens = estimateTokens(complete);
+      metrics.tokensPerSecond =
+        metrics.generationDurationMs > 0
+          ? Number(
+              (
+                metrics.outputTokens /
+                (metrics.generationDurationMs / 1000)
+              ).toFixed(2),
+            )
+          : null;
 
       //after getting response store the response in cache=> but ony skipcache = false
       if(!skipCache){
@@ -173,6 +251,7 @@ export async function runRAGPipeline({
           cacheHit: false,
           hasContradiction: !!contradiction,
           chunksUsed: results.length,
+          ragMetrics: { ...metrics },
         },
       });
       console.log(
@@ -182,6 +261,27 @@ export async function runRAGPipeline({
     },
     onError,
   });
+  } finally {
+    metrics.totalRagMs = elapsedMs(pipelineStart);
+    console.info(
+      `[RAG_METRICS] ${JSON.stringify({
+        requestId,
+        workspaceId,
+        usageType,
+        ...metrics,
+      })}`,
+    );
+  }
+}
+
+function countDistinctSources(results) {
+  return new Set(
+    results.map((result) => getSourceComparisonKey(result.pageUrl)),
+  ).size;
+}
+
+function elapsedMs(start) {
+  return Number((performance.now() - start).toFixed(1));
 }
 
 function buildFallbackAnswer(results) {
