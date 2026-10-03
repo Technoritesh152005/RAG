@@ -27,7 +27,17 @@ export async function embedAndStore(chunks, sourceId, workspaceId, onProgress) {
   )
 
   if (uniqueChunks.length === 0) {
-    throw new Error('No new chunks were available for embedding')
+    const result = {
+      status: "already_up_to_date",
+      chunksCount: chunks.length,
+      newChunks: 0,
+      duplicates: duplicateMap.size,
+    };
+    console.log(
+      `No new chunks found for source ${sourceId}. ` +
+        `This content is already available in workspace ${workspaceId}.`,
+    );
+    return result;
   }
 
   let totalProcessed = 0;

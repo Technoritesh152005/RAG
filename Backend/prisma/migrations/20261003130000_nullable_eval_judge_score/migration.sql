@@ -1,0 +1,2 @@
+ALTER TABLE "EvalResult"
+ALTER COLUMN "judgeScore" DROP NOT NULL;

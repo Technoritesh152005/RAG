@@ -66,7 +66,12 @@ export async function runEvalTestCases(workspaceId, label = "unlabeled") {
   const hitCount = results.filter((r) => r.hit).length;
   const confidentCount = results.filter((r) => r.confident).length;
   const avgMRR = average(results.map((r) => r.reciprocalRank));
-  const avgJudgeScore = average(results.map((r) => r.judgeScore));
+  const validJudgeScores = results
+    .map((result) => result.judgeScore)
+    .filter(Number.isFinite);
+  const avgJudgeScore = validJudgeScores.length
+    ? average(validJudgeScores)
+    : 0;
   const latencies = results.map((r) => r.latency);
 
   //now we save the ran evaluation data
@@ -226,13 +231,10 @@ Respond with ONLY this JSON, nothing else:
     const raw = await generateTextFAQs(
       "You outout only valid JSON, nothing else",
       judgePrompt,
+      { jsonMode: true },
     );
 
-    const parsed = JSON.parse(raw.trim().replace(/```json|```/g, ""));
-    return {
-      score: Math.max(0, Math.min(1, parsed.score)),
-      reasoning: parsed.reasoning,
-    };
+    return parseJudgeResponse(raw);
   } catch (error) {
     console.error("Judge scoring failed:", error.message);
     return {
@@ -284,4 +286,71 @@ function percentile(arr, p) {
   const sorted = [...arr].sort((a, b) => a - b)
   const index = Math.ceil((p / 100) * sorted.length) - 1
   return sorted[Math.max(0, index)]
+}
+
+export function parseJudgeResponse(raw) {
+  if (typeof raw !== "string" || raw.trim().length === 0) {
+    throw new Error("Judge returned an empty response");
+  }
+
+  const text = raw.trim();
+  const objectStart = text.indexOf("{");
+  if (objectStart === -1) {
+    throw new Error("Judge response did not contain a JSON object");
+  }
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let objectEnd = -1;
+
+  for (let index = objectStart; index < text.length; index += 1) {
+    const character = text[index];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (character === '"') {
+      inString = true;
+    } else if (character === "{") {
+      depth += 1;
+    } else if (character === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        objectEnd = index;
+        break;
+      }
+    }
+  }
+
+  if (objectEnd === -1) {
+    throw new Error("Judge response contained incomplete JSON");
+  }
+
+  const parsed = JSON.parse(text.slice(objectStart, objectEnd + 1));
+  const score =
+    typeof parsed.score === "number"
+      ? parsed.score
+      : typeof parsed.score === "string" && parsed.score.trim() !== ""
+        ? Number(parsed.score)
+        : Number.NaN;
+  const reasoning =
+    typeof parsed.reasoning === "string" ? parsed.reasoning.trim() : "";
+
+  if (!Number.isFinite(score) || score < 0 || score > 1) {
+    throw new Error("Judge response score must be a number from 0 to 1");
+  }
+  if (!reasoning) {
+    throw new Error("Judge response is missing reasoning");
+  }
+
+  return { score, reasoning };
 }

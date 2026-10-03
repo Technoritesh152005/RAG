@@ -18,7 +18,8 @@ import SourcePanel from "../features/sources/SourcePanel";
 import ChatPanel from "../features/chat/ChatPanel";
 import WorkspaceFAQs from "../features/chat/WorkspaceFaq";
 import WorkspaceAnalytics from "../features/analytics/WorkspaceAnalytics";
-import { QueryFeedback, MutationFeedback } from "../components/asyncFeedback";
+import EvaluationPanel from "../features/evaluation/EvaluationPanel";
+import { QueryFeedback, MutationFeedback, ConfirmModal } from "../components/asyncFeedback";
 
 import { queryKeys } from "../api/queryKeys";
 import { useWorkspaceStore } from "../stores/workspace.store";
@@ -54,6 +55,8 @@ function getInitials(name) {
 
 export default function WorkspacePage() {
   const { signOut, user } = useAuth();
+  const userRole = user?.app_metadata?.role?.toLowerCase?.();
+  const canRunEvaluation = userRole === "admin" || userRole === "developer";
   const queryClient = useQueryClient();
 
   const selectedWorkspaceId = useWorkspaceStore(
@@ -69,6 +72,7 @@ export default function WorkspacePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTab, setFilterTab] = useState("all"); // 'all' | 'active' | 'needs_source'
   const [faqPrompt, setFaqPrompt] = useState("");
+  const [showDeleteWorkspaceModal, setShowDeleteWorkspaceModal] = useState(false);
 
   const workspacesQuery = useQuery({
     queryKey: queryKeys.workspaces,
@@ -195,12 +199,7 @@ export default function WorkspacePage() {
 
   function handleDelete() {
     if (!selectedWorkspaceId) return;
-    const workspaceName = selectedWorkspace?.name ?? "this workspace";
-    const confirmed = window.confirm(
-      `Delete "${workspaceName}" and all its sources and chats? This can't be undone.`,
-    );
-    if (!confirmed) return;
-    deleteMutation.mutate(selectedWorkspaceId);
+    setShowDeleteWorkspaceModal(true);
   }
 
   function handleClearCache() {
@@ -283,10 +282,6 @@ export default function WorkspacePage() {
             <div className="inner-stat-pill">
               <span className="inner-stat-val">{selectedWorkspace._count?.messages ?? 0}</span>
               <span className="inner-stat-lbl">Messages</span>
-            </div>
-            <div className="inner-stat-pill">
-              <span className="inner-stat-val">{statsQuery.data?.totalChunks ?? 0}</span>
-              <span className="inner-stat-lbl">Knowledge Items</span>
             </div>
           </div>
 
@@ -489,6 +484,31 @@ export default function WorkspacePage() {
             </svg>
             <span>Usage</span>
           </button>
+
+          {canRunEvaluation && (
+            <button
+              className={activeView === "evaluation" ? "is-active" : ""}
+              type="button"
+              onClick={() => setActiveView("evaluation")}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M4 19V5" />
+                <path d="M4 19h17" />
+                <path d="m7 15 4-4 3 2 5-6" />
+              </svg>
+              <span>Evaluation</span>
+            </button>
+          )}
 
           <button
             className={activeView === "settings" ? "is-active" : ""}
@@ -727,56 +747,63 @@ export default function WorkspacePage() {
                 <p>Set up a dedicated project space for your documentation and team notes.</p>
               </div>
 
-              <form className="create-form" onSubmit={handleCreate}>
-                <div className="form-field">
-                  <label htmlFor="name-input">Workspace name</label>
-                  <input
-                    id="name-input"
-                    name="name"
-                    type="text"
-                    placeholder="e.g. Java Documentation, React Specs"
-                    required
-                    maxLength={50}
-                    autoFocus
-                  />
+              {createMutation.isPending ? (
+                <div className="creating-workspace-card">
+                  <div className="creating-spinner" />
+                  <h3>Setting up workspace...</h3>
+                  <p>Initializing vector database and AI chat assistant</p>
                 </div>
+              ) : (
+                <form className="create-form" onSubmit={handleCreate}>
+                  <div className="form-field">
+                    <label htmlFor="name-input">Workspace name</label>
+                    <input
+                      id="name-input"
+                      name="name"
+                      type="text"
+                      placeholder="e.g. Java Documentation, React Specs"
+                      required
+                      maxLength={50}
+                      autoFocus
+                    />
+                  </div>
 
-                <div className="form-field">
-                  <label htmlFor="desc-input">
-                    Description <small>(Optional)</small>
-                  </label>
-                  <textarea
-                    id="desc-input"
-                    name="description"
-                    placeholder="Briefly describe what knowledge is contained here..."
-                    maxLength={200}
-                    rows={3}
-                  />
-                </div>
+                  <div className="form-field">
+                    <label htmlFor="desc-input">
+                      Description <small>(Optional)</small>
+                    </label>
+                    <textarea
+                      id="desc-input"
+                      name="description"
+                      placeholder="Briefly describe what knowledge is contained here..."
+                      maxLength={200}
+                      rows={3}
+                    />
+                  </div>
 
-                {createMutation.isError && (
-                  <p className="form-error-msg" role="alert">
-                    {createMutation.error.message}
-                  </p>
-                )}
+                  {createMutation.isError && (
+                    <p className="form-error-msg" role="alert">
+                      {createMutation.error.message}
+                    </p>
+                  )}
 
-                <div className="form-buttons">
-                  <button
-                    className="primary-action-white"
-                    type="submit"
-                    disabled={createMutation.isPending}
-                  >
-                    {createMutation.isPending ? "Creating..." : "Create workspace"}
-                  </button>
-                  <button
-                    className="secondary-btn"
-                    type="button"
-                    onClick={() => setActiveView("workspaces")}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
+                  <div className="form-buttons">
+                    <button
+                      className="primary-action-white"
+                      type="submit"
+                    >
+                      Create workspace
+                    </button>
+                    <button
+                      className="secondary-btn"
+                      type="button"
+                      onClick={() => setActiveView("workspaces")}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           </section>
         )}
@@ -892,6 +919,73 @@ export default function WorkspacePage() {
           </section>
         )}
 
+        {activeView === "evaluation" && canRunEvaluation && (
+          <section className="page-content">
+            <div className="sources-view-header">
+              <div className="sources-header-row">
+                <div>
+                  <h1 className="page-title">RAG Evaluation</h1>
+                  <p className="page-subtitle">
+                    Manage evaluation cases and compare retrieval and answer quality across runs.
+                  </p>
+                </div>
+                {workspaces.length > 0 && (
+                  <div className="sources-workspace-selector">
+                    <label
+                      className="selector-label"
+                      htmlFor="evaluation-workspace-select"
+                    >
+                      Select workspace:
+                    </label>
+                    <div className="custom-select-box">
+                      <select
+                        id="evaluation-workspace-select"
+                        className="sources-select-input"
+                        value={selectedWorkspaceId ?? ""}
+                        onChange={(event) =>
+                          setSelectedWorkspaceId(event.target.value)
+                        }
+                      >
+                        {workspaces.map((workspace) => (
+                          <option key={workspace.id} value={workspace.id}>
+                            {workspace.name}
+                          </option>
+                        ))}
+                      </select>
+                      <svg
+                        className="select-arrow-icon"
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {selectedWorkspaceId ? (
+              <EvaluationPanel
+                key={selectedWorkspaceId}
+                workspaceId={selectedWorkspaceId}
+              />
+            ) : (
+              <div className="directory-empty-state">
+                <h2>No workspace selected</h2>
+                <p>Select a workspace to manage evaluation cases and runs.</p>
+              </div>
+            )}
+          </section>
+        )}
+
         {/* SETTINGS VIEW */}
         {activeView === "settings" && (
           <section className="page-content settings-container">
@@ -930,7 +1024,13 @@ export default function WorkspacePage() {
             {selectedWorkspace ? (
               <div className="settings-cards-stack">
                 <div className="settings-card">
-                  <h3>Workspace details</h3>
+                  <div className="settings-card-header">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                    </svg>
+                    <h3>Workspace details</h3>
+                  </div>
                   {editing ? (
                     <form className="create-form" onSubmit={handleUpdate}>
                       <div className="form-field">
@@ -972,8 +1072,8 @@ export default function WorkspacePage() {
                   ) : (
                     <div className="settings-row">
                       <div>
-                        <strong>{selectedWorkspace.name}</strong>
-                        <p>{selectedWorkspace.description || "No description added."}</p>
+                        <strong className="settings-ws-name">{selectedWorkspace.name}</strong>
+                        <p className="settings-ws-desc">{selectedWorkspace.description || "No description added."}</p>
                       </div>
                       <button
                         className="secondary-btn"
@@ -987,9 +1087,17 @@ export default function WorkspacePage() {
                 </div>
 
                 <div className="settings-card">
-                  <h3>Saved answers</h3>
+                  <div className="settings-card-header">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                      <path d="M3 3v5h5" />
+                      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                      <path d="M16 21h5v-5" />
+                    </svg>
+                    <h3>Saved Semantic Cache</h3>
+                  </div>
                   <div className="settings-row">
-                    <p>Clear saved answers so DocuFlux checks your current sources next time.</p>
+                    <p>Clear saved semantic cache answers so DocuFlux queries your current sources next time.</p>
                     <button
                       className="secondary-btn"
                       type="button"
@@ -1002,10 +1110,16 @@ export default function WorkspacePage() {
                 </div>
 
                 <div className="settings-card danger-card">
-                  <h3>Delete workspace</h3>
+                  <div className="settings-card-header">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    <h3>Delete Workspace</h3>
+                  </div>
                   <div className="settings-row">
                     <p>
-                      Permanently remove <strong>{selectedWorkspace.name}</strong>, its sources, chats, and indexed data.
+                      Permanently remove <strong>{selectedWorkspace.name}</strong>, its connected sources, chats, and indexed data.
                     </p>
                     <button
                       className="danger-btn"
@@ -1013,7 +1127,7 @@ export default function WorkspacePage() {
                       onClick={handleDelete}
                       disabled={deleteMutation.isPending}
                     >
-                      {deleteMutation.isPending ? "Deleting..." : `Delete ${selectedWorkspace.name}`}
+                      {deleteMutation.isPending ? "Deleting..." : `Delete Workspace`}
                     </button>
                   </div>
                 </div>
@@ -1040,11 +1154,28 @@ export default function WorkspacePage() {
           <MutationFeedback
             mutation={deleteMutation}
             pendingMessage="Deleting workspace..."
+            successMessage="Workspace deleted."
           />
           <MutationFeedback
             mutation={clearCacheMutation}
             pendingMessage="Clearing semantic cache..."
             successMessage="Semantic cache cleared."
+          />
+
+          <ConfirmModal
+            isOpen={showDeleteWorkspaceModal}
+            title={`Delete "${selectedWorkspace?.name ?? "Workspace"}"?`}
+            message="This will permanently delete this workspace, including all connected documentation sources, indexed knowledge, and chat history. This action cannot be undone."
+            confirmLabel="Delete Workspace"
+            isPending={deleteMutation.isPending}
+            onConfirm={() => {
+              if (selectedWorkspaceId) {
+                deleteMutation.mutate(selectedWorkspaceId, {
+                  onSettled: () => setShowDeleteWorkspaceModal(false),
+                });
+              }
+            }}
+            onCancel={() => setShowDeleteWorkspaceModal(false)}
           />
         </div>
       </div>
