@@ -39,7 +39,10 @@ export default function EvaluationPanel({ workspaceId }) {
   const [selectedRunId, setSelectedRunId] = useState("");
   const [question, setQuestion] = useState("");
   const [expectedUrls, setExpectedUrls] = useState("");
+  const [expectedRelevance, setExpectedRelevance] = useState("");
   const [expectedFacts, setExpectedFacts] = useState("");
+  const [referenceAnswer, setReferenceAnswer] = useState("");
+  const [caseFormError, setCaseFormError] = useState("");
 
   //return all evaluation cases
   const caseQuery = useQuery({
@@ -77,6 +80,9 @@ export default function EvaluationPanel({ workspaceId }) {
       setQuestion("");
       setExpectedFacts("");
       setExpectedUrls("");
+      setExpectedRelevance("");
+      setReferenceAnswer("");
+      setCaseFormError("");
     },
   });
 
@@ -122,21 +128,42 @@ export default function EvaluationPanel({ workspaceId }) {
 
   async function handleCreateCase(event){
     event.preventDefault();
+    setCaseFormError("");
 
     const urls = expectedUrls
       .split("\n")
       .map((value) => value.trim())
       .filter(Boolean);
+    const relevanceLines = expectedRelevance
+      .split("\n")
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const relevance = relevanceLines.map(Number);
 
     const facts = expectedFacts
       .split("\n")
       .map((value) => value.trim())
       .filter(Boolean);
 
+    if (
+      relevanceLines.length > 0 &&
+      (relevance.length !== urls.length ||
+        relevance.some(
+          (value) => !Number.isInteger(value) || value < 0 || value > 3,
+        ))
+    ) {
+      setCaseFormError(
+        "Enter one relevance grade from 0 to 3 for each expected URL, in the same order.",
+      );
+      return;
+    }
+
       await createCaseMutation.mutateAsync({
       question: question.trim(),
       expectedPageUrls: urls,
+      expectedPageRelevance: relevanceLines.length ? relevance : undefined,
       expectedKeyFacts: facts,
+      referenceAnswer: referenceAnswer.trim() || undefined,
     });
   }
 
@@ -147,6 +174,9 @@ export default function EvaluationPanel({ workspaceId }) {
    const cases = caseQuery.data ?? [];
   const runs = runsQuery.data ?? [];
   const selectedRun = runDetailQuery.data;
+  const judgedCases = (selectedRun?.results ?? []).filter((result) =>
+    Number.isFinite(result.judgeScore),
+  ).length;
 
   return (
     <div className="evaluation-workbench">
@@ -182,12 +212,30 @@ export default function EvaluationPanel({ workspaceId }) {
           </label>
 
           <label className="evaluation-field">
+            <span>Relevance grades (optional)</span>
+            <textarea
+              value={expectedRelevance}
+              onChange={(event) => setExpectedRelevance(event.target.value)}
+              placeholder="One grade per expected URL, in the same order (0-3)"
+            />
+          </label>
+
+          <label className="evaluation-field">
             <span>Expected key facts</span>
             <textarea
               value={expectedFacts}
               onChange={(event) => setExpectedFacts(event.target.value)}
               placeholder="One fact per line"
               required
+            />
+          </label>
+
+          <label className="evaluation-field">
+            <span>Reference answer (optional)</span>
+            <textarea
+              value={referenceAnswer}
+              onChange={(event) => setReferenceAnswer(event.target.value)}
+              placeholder="A high-quality answer used for BLEU, ROUGE-L, METEOR, and BERTScore"
             />
           </label>
 
@@ -199,6 +247,10 @@ export default function EvaluationPanel({ workspaceId }) {
             {createCaseMutation.isPending ? "Adding case..." : "Add test case"}
           </button>
         </form>
+
+        {caseFormError && (
+          <p className="evaluation-error" role="alert">{caseFormError}</p>
+        )}
 
         {createCaseMutation.isError && (
           <p className="evaluation-error" role="alert">
@@ -251,6 +303,7 @@ export default function EvaluationPanel({ workspaceId }) {
                     {testCase.expectedPageUrls.length} expected {testCase.expectedPageUrls.length === 1 ? "source" : "sources"}
                     <span aria-hidden="true"> · </span>
                     {testCase.expectedKeyFacts.length} key {testCase.expectedKeyFacts.length === 1 ? "fact" : "facts"}
+                    {testCase.referenceAnswer && " · reference answer"}
                   </span>
                 </div>
                 <button
@@ -340,7 +393,20 @@ export default function EvaluationPanel({ workspaceId }) {
                 <EvaluationMetric label="Cases" value={selectedRun.totalCases} />
                 <EvaluationMetric label="Retrieval hit rate" value={percent(selectedRun.avgHitRate)} />
                 <EvaluationMetric label="Mean reciprocal rank" value={score(selectedRun.avgMRR)} />
-                <EvaluationMetric label="Answer score" value={score(selectedRun.avgJudgeScore)} />
+                <EvaluationMetric label={`Answer score (${judgedCases}/${selectedRun.totalCases} judged)`} value={score(selectedRun.avgJudgeScore)} />
+                <EvaluationMetric label="Precision@5" value={percent(selectedRun.avgPrecisionAtK)} />
+                <EvaluationMetric label="Recall@5" value={percent(selectedRun.avgRecallAtK)} />
+                <EvaluationMetric label="F1@5" value={percent(selectedRun.avgF1AtK)} />
+                <EvaluationMetric label="nDCG@5" value={score(selectedRun.avgNdcgAtK)} />
+                <EvaluationMetric label="BLEU-4" value={score(selectedRun.avgBleu)} />
+                <EvaluationMetric label="ROUGE-L" value={score(selectedRun.avgRougeL)} />
+                <EvaluationMetric label="METEOR (exact + stem)" value={score(selectedRun.avgMeteor)} />
+                <EvaluationMetric label="BERTScore F1" value={score(selectedRun.avgBertScore)} />
+                <EvaluationMetric label="Perplexity" value={score(selectedRun.avgPerplexity)} />
+                <EvaluationMetric label="Groundedness" value={percent(selectedRun.avgGroundedness)} />
+                <EvaluationMetric label="Hallucination rate" value={percent(selectedRun.avgHallucinationRate)} />
+                <EvaluationMetric label="Factual consistency" value={percent(selectedRun.avgFactualConsistency)} />
+                <EvaluationMetric label="Answer relevance" value={percent(selectedRun.avgAnswerRelevance)} />
                 <EvaluationMetric label="Confident responses" value={percent(selectedRun.confidentRate)} />
                 <EvaluationMetric label="Average latency" value={`${selectedRun.avgLatencyMs} ms`} />
                 <EvaluationMetric label="P95 latency" value={`${selectedRun.p95LatencyMs} ms`} />
@@ -361,7 +427,13 @@ export default function EvaluationPanel({ workspaceId }) {
                     </div>
                     <div className="evaluation-result-stats">
                       <span>MRR {score(result.reciprocalRank)}</span>
+                      <span>P/R/F1 {percent(result.precisionAtK)} / {percent(result.recallAtK)} / {percent(result.f1AtK)}</span>
+                      <span>nDCG {score(result.ndcgAtK)}</span>
                       <span>Answer {score(result.judgeScore)}</span>
+                      <span>Grounded {percent(result.groundedness)}</span>
+                      <span>Hallucination {percent(result.hallucinationRate)}</span>
+                      <span>Consistency {percent(result.factualConsistency)}</span>
+                      <span>Relevance {percent(result.answerRelevance)}</span>
                       <span>{result.confident ? "Confident" : "Low confidence"}</span>
                       <span>{result.latencyMs} ms</span>
                     </div>

@@ -13,6 +13,7 @@ export async function runRAGPipeline({
   onDone,
   onError,
   onMetadata,
+  onTokenLogprobs,
   usageType = "CHAT",
   skipCache = false,
 }) {
@@ -205,6 +206,7 @@ export async function runRAGPipeline({
   await streamAnswer({
     systemPrompt,
     userPrompt,
+    onTokenLogprobs,
     onToken: (token) => {
       if (firstTokenAt === null) {
         firstTokenAt = performance.now();

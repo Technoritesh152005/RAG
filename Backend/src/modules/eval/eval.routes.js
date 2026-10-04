@@ -14,8 +14,15 @@ import {
 const caseSchema = z.object({
   question: z.string().min(3),
   expectedPageUrls: z.array(z.string()).min(1),
+  expectedPageRelevance: z.array(z.number().int().min(0).max(3)).optional(),
   expectedKeyFacts: z.array(z.string()).min(1),
-});
+  referenceAnswer: z.string().optional(),
+}).refine(
+  (value) =>
+    !value.expectedPageRelevance ||
+    value.expectedPageRelevance.length === value.expectedPageUrls.length,
+  { message: "Provide one relevance grade per expected page URL" },
+);
 
 async function verifyWorkspaceOwnership(workspaceId, userId) {
   const workspace = await prisma.workspace.findFirst({
@@ -72,6 +79,8 @@ export async function evalRoutes(fastify) {
         question: body.question,
         expectedKeyFacts: body.expectedKeyFacts,
         expectedPageUrls: body.expectedPageUrls,
+        expectedPageRelevance: body.expectedPageRelevance,
+        referenceAnswer: body.referenceAnswer?.trim() || null,
       });
 
       return reply.status(200).send({ eval: createdEvalCases });
