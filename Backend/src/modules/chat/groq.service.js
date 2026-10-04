@@ -14,11 +14,12 @@ export async function streamAnswer({
   systemPrompt,
   userPrompt,
   onToken,
+  onTokenLogprobs,
   onDone,
   onError,
 }) {
   try {
-    const stream = await groq.chat.completions.create({
+    const createStream = (includeLogprobs) => groq.chat.completions.create({
       model: LLM_MODEL,
       max_tokens: MAX_TOKENS,
       temperature: 0.3,
@@ -33,18 +34,49 @@ export async function streamAnswer({
         },
       ],
       stream: true,
+      ...(includeLogprobs ? { logprobs: true } : {}),
     });
+
+    let stream;
+    try {
+      stream = await createStream(Boolean(onTokenLogprobs));
+    } catch (err) {
+      if (
+        !onTokenLogprobs ||
+        err?.status !== 400 ||
+        !/logprobs/i.test(err.message ?? "")
+      ) {
+        throw err;
+      }
+
+      console.warn(
+        "Groq model does not support logprobs; continuing evaluation without perplexity.",
+      );
+      stream = await createStream(false);
+    }
 
     let fullAnswer = "";
     for await (const chunk of stream) {
-      const smallContent = chunk.choices[0]?.delta?.content || "";
+      const choice = chunk.choices[0];
+      const smallContent = choice?.delta?.content || "";
 
       if (smallContent) {
         fullAnswer += smallContent;
         onToken(smallContent);
+
+        if (onTokenLogprobs) {
+          const tokenLogprobs = choice.logprobs?.content;
+          onTokenLogprobs(
+            Array.isArray(tokenLogprobs) && tokenLogprobs.length > 0
+              ? tokenLogprobs.map((token) =>
+                  Number.isFinite(token.logprob) ? token.logprob : null,
+                )
+              : [null],
+          );
+        }
       }
 
-      if (chunk.choices[0]?.finish_reason === "STOP") {
+      if (choice?.finish_reason === "STOP") {
         break;
       }
     }
@@ -63,8 +95,8 @@ export async function streamAnswer({
 export async function generateTextFAQs(systemPrompt, userPrompt, options = {}) {
   const response = await groq.chat.completions.create({
     model: process.env.GROQ_MODEL || "openai/gpt-oss-20b",
-    temperature: 0.3,
-    max_tokens: 400,
+    temperature: options.temperature ?? 0.3,
+    max_tokens: options.maxTokens ?? 400,
     messages: [
       { role: "user", content: userPrompt },
       { role: "system", content: systemPrompt },

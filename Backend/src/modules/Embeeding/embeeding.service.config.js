@@ -32,6 +32,18 @@ export async function embedTexts(texts) {
   return embeddings
 }
 
+export async function extractTokenEmbeddings(text) {
+  const extractor = await getExtractor()
+  const output = await extractor(cleanText(text), {
+    pooling: 'none',
+    normalize: false,
+  })
+  const [sequence = []] = output.tolist()
+
+  // The feature-extraction model wraps text in leading/trailing special tokens.
+  return sequence.length > 2 ? sequence.slice(1, -1) : sequence
+}
+
 export async function embeddingText(text) {
   const [embedding] = await embedTexts([text])
   return embedding

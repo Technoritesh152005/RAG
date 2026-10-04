@@ -134,7 +134,9 @@ model EvalCase{
   workspaceId String
   question String
   expectedPageUrls Json  // array of strings — pages that SHOULD be retrieved
+  expectedPageRelevance Json?
   expectedKeyFacts Json  // array of strings — facts the answer must contain
+  referenceAnswer String? @db.Text
    createdAt         DateTime @default(now())
 
   @@index([workspaceId])
@@ -151,6 +153,19 @@ model EvalRun {
   confidentRate   Float    // % of cases where pipeline was confident (not fallback)
   avgLatencyMs    Int
   p95LatencyMs    Int
+  avgPrecisionAtK Float?
+  avgRecallAtK Float?
+  avgF1AtK Float?
+  avgNdcgAtK Float?
+  avgBleu Float?
+  avgRougeL Float?
+  avgMeteor Float?
+  avgBertScore Float?
+  avgPerplexity Float?
+  avgGroundedness Float?
+  avgHallucinationRate Float?
+  avgFactualConsistency Float?
+  avgAnswerRelevance Float?
   createdAt       DateTime @default(now())
   results         EvalResult[]
 
@@ -168,6 +183,19 @@ model EvalResult{
   reciprocalRank   Float    // 0 if miss, 1/rank if hit
   judgeScore       Float?   // 0-1; null if judge scoring fails
   judgeReasoning   String   @db.Text
+  precisionAtK Float?
+  recallAtK Float?
+  f1AtK Float?
+  ndcgAtK Float?
+  bleu Float?
+  rougeL Float?
+  meteor Float?
+  bertScore Float?
+  perplexity Float?
+  groundedness Float?
+  hallucinationRate Float?
+  factualConsistency Float?
+  answerRelevance Float?
   confident        Boolean
   latencyMs        Int
   generatedAnswer  String   @db.Text

@@ -9,4 +9,6 @@ WorksToDo.txt
 evalrun-1.txt
 
 eval/
+!Backend/src/modules/eval/
+!Backend/src/modules/eval/eval-metrics.service.js
 scripts

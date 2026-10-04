@@ -1,6 +1,14 @@
 import prisma from "../../lib/prisma.js";
 import { runRAGPipeline } from "../chat/rag.service.js";
 import { generateTextFAQs } from "../chat/groq.service.js";
+import {
+  calculateBertScore,
+  calculateBleu4,
+  calculateMeteor,
+  calculatePerplexity,
+  calculateRetrievalMetrics,
+  calculateRougeL,
+} from "./eval-metrics.service.js";
 
 const EVAL_CONCURRENCY = 1;
 //at a time only 3 evals question is sended
@@ -10,10 +18,19 @@ export async function putEvalTestCase({
   workspaceId,
   question,
   expectedPageUrls,
+  expectedPageRelevance,
   expectedKeyFacts,
+  referenceAnswer,
 }) {
   return await prisma.evalCase.create({
-    data: { workspaceId, question, expectedPageUrls, expectedKeyFacts },
+    data: {
+      workspaceId,
+      question,
+      expectedPageUrls,
+      expectedPageRelevance,
+      expectedKeyFacts,
+      referenceAnswer,
+    },
   });
 }
 
@@ -73,6 +90,21 @@ export async function runEvalTestCases(workspaceId, label = "unlabeled") {
     ? average(validJudgeScores)
     : 0;
   const latencies = results.map((r) => r.latency);
+  const metricAverages = {
+    avgPrecisionAtK: averageNullable(results.map((result) => result.precisionAtK)),
+    avgRecallAtK: averageNullable(results.map((result) => result.recallAtK)),
+    avgF1AtK: averageNullable(results.map((result) => result.f1AtK)),
+    avgNdcgAtK: averageNullable(results.map((result) => result.ndcgAtK)),
+    avgBleu: averageNullable(results.map((result) => result.bleu)),
+    avgRougeL: averageNullable(results.map((result) => result.rougeL)),
+    avgMeteor: averageNullable(results.map((result) => result.meteor)),
+    avgBertScore: averageNullable(results.map((result) => result.bertScore)),
+    avgPerplexity: averageNullable(results.map((result) => result.perplexity)),
+    avgGroundedness: averageNullable(results.map((result) => result.groundedness)),
+    avgHallucinationRate: averageNullable(results.map((result) => result.hallucinationRate)),
+    avgFactualConsistency: averageNullable(results.map((result) => result.factualConsistency)),
+    avgAnswerRelevance: averageNullable(results.map((result) => result.answerRelevance)),
+  };
 
   //now we save the ran evaluation data
   const run = await prisma.evalRun.create({
@@ -86,6 +118,7 @@ export async function runEvalTestCases(workspaceId, label = "unlabeled") {
       confidentRate: parseFloat((confidentCount / testCases.length).toFixed(4)),
       avgLatencyMs: Math.round(average(latencies)),
       p95LatencyMs: percentile(latencies, 95),
+      ...metricAverages,
       results: {
         create: results.map((r) => ({
           caseId: r.caseId,
@@ -95,6 +128,19 @@ export async function runEvalTestCases(workspaceId, label = "unlabeled") {
           reciprocalRank: r.reciprocalRank,
           judgeScore: r.judgeScore,
           judgeReasoning: r.judgeReasoning,
+          precisionAtK: r.precisionAtK,
+          recallAtK: r.recallAtK,
+          f1AtK: r.f1AtK,
+          ndcgAtK: r.ndcgAtK,
+          bleu: r.bleu,
+          rougeL: r.rougeL,
+          meteor: r.meteor,
+          bertScore: r.bertScore,
+          perplexity: r.perplexity,
+          groundedness: r.groundedness,
+          hallucinationRate: r.hallucinationRate,
+          factualConsistency: r.factualConsistency,
+          answerRelevance: r.answerRelevance,
           confident: r.confident,
           latencyMs: r.latency,
           generatedAnswer: r.fullAnswer,
@@ -118,12 +164,14 @@ async function runSingleCase(evalCase, workspaceId) {
   let fullAnswer = "";
   let citations = [];
   let confident = false;
+  let tokenLogprobs = [];
   const maxAttempts = 2;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     fullAnswer = "";
     citations = [];
     confident = false;
+    tokenLogprobs = [];
 
     await new Promise((resolve, reject) => {
       runRAGPipeline({
@@ -134,6 +182,9 @@ async function runSingleCase(evalCase, workspaceId) {
         onMetadata: (metadata) => {
           citations = metadata.citations || [];
           confident = metadata.confident;
+        },
+        onTokenLogprobs: (logprobs) => {
+          tokenLogprobs.push(...logprobs);
         },
         onToken: (token) => {
           fullAnswer += token;
@@ -157,20 +208,27 @@ async function runSingleCase(evalCase, workspaceId) {
   console.log(`[Latency][Eval] ragPipelineMs=${latency} caseId=${evalCase.id}`);
 
   const retrievedUrl = citations.map((citation) => citation.pageUrl);
-
-  //Retrieval Metrics
-  const expectedUrl = evalCase.expectedPageUrls;
-  let hit = false;
-  let reciprocalRank = 0;
-
-  //we check whether in citations source we have some retrieved url in it
-  for (let rank = 0; rank < retrievedUrl.length; rank++) {
-    if (expectedUrl.some((expected) => retrievedUrl[rank].includes(expected))) {
-      hit = true;
-      reciprocalRank = 1 / (rank + 1);
-      break;
-    }
-  }
+  const retrievalMetrics = calculateRetrievalMetrics(
+    retrievedUrl,
+    evalCase.expectedPageUrls,
+    evalCase.expectedPageRelevance,
+  );
+  const referenceAnswer = evalCase.referenceAnswer?.trim();
+  const textMetrics = referenceAnswer
+    ? {
+        bleu: calculateBleu4(fullAnswer, referenceAnswer),
+        rougeL: calculateRougeL(fullAnswer, referenceAnswer),
+        meteor: calculateMeteor(fullAnswer, referenceAnswer),
+        bertScore: await calculateBertScore(fullAnswer, referenceAnswer).catch(
+          (error) => {
+            console.warn(
+              `[Eval] BERTScore unavailable for case ${evalCase.id}: ${error.message}`,
+            );
+            return null;
+          },
+        ),
+      }
+    : { bleu: null, rougeL: null, meteor: null, bertScore: null };
 
   const judgeStart = Date.now();
   const judgeResult = fullAnswer.trim()
@@ -178,9 +236,14 @@ async function runSingleCase(evalCase, workspaceId) {
         evalCase.question,
         fullAnswer,
         evalCase.expectedKeyFacts,
+        citations,
       )
     : {
-        score: 0,
+        score: null,
+        groundedness: null,
+        hallucinationRate: null,
+        factualConsistency: null,
+        answerRelevance: null,
         reasoning: "Generation failed: the answer model returned an empty answer after retry.",
       };
   const { score, reasoning } = judgeResult;
@@ -191,10 +254,20 @@ async function runSingleCase(evalCase, workspaceId) {
     caseId: evalCase.id,
     question: evalCase.question,
     retrievedUrl,
-    hit,
-    reciprocalRank,
+    hit: retrievalMetrics.hit,
+    reciprocalRank: retrievalMetrics.reciprocalRank,
+    precisionAtK: retrievalMetrics.precisionAtK,
+    recallAtK: retrievalMetrics.recallAtK,
+    f1AtK: retrievalMetrics.f1AtK,
+    ndcgAtK: retrievalMetrics.ndcgAtK,
     judgeScore: score,
     judgeReasoning: reasoning,
+    ...textMetrics,
+    perplexity: calculatePerplexity(tokenLogprobs),
+    groundedness: judgeResult.groundedness,
+    hallucinationRate: judgeResult.hallucinationRate,
+    factualConsistency: judgeResult.factualConsistency,
+    answerRelevance: judgeResult.answerRelevance,
     confident,
     latency,
     fullAnswer,
@@ -202,44 +275,59 @@ async function runSingleCase(evalCase, workspaceId) {
 }
 
 //it builds prompt and send llm call sending key facts question and rag anseet and get score and reasoning for it
-async function judgeAnswer(question, generatedAnswer, expectedKeyFacts) {
-  const judgePrompt = `You are grading an AI assistant's answer for factual correctness.
+async function judgeAnswer(question, generatedAnswer, expectedKeyFacts, citations) {
+  const retrievedEvidence = citations
+    .slice(0, 5)
+    .map(
+      (citation, index) =>
+        `[Evidence ${index + 1}] ${citation.pageTitle ?? ""}\n` +
+        `URL: ${citation.pageUrl ?? ""}\n` +
+        `${(citation.parentText || citation.childText || "").slice(0, 2500)}`,
+    )
+    .join("\n\n---\n\n");
+
+  const judgePrompt = `You are an evaluation judge. Score the answer only against the question and retrieved evidence.
 
 Question: "${question}"
 
-Expected key facts the answer should contain (not necessarily word-for-word):
-${expectedKeyFacts.map((f, i) => `${i + 1}. ${f}`).join("\n")}
+Expected key facts:
+${expectedKeyFacts.map((fact, index) => `${index + 1}. ${fact}`).join("\n")}
 
-The AI's actual answer:
+Generated answer:
 "${generatedAnswer}"
 
-Score how well the answer covers the expected key facts using this rubric:
-- 1.00 = Complete and accurate; all important expected facts are covered correctly
-- 0.75 = Mostly complete and accurate; only minor omissions or imprecision
-- 0.50 = Partially complete; one or more important facts are missing or incorrect
-- 0.25 = Very incomplete; only a small portion of the expected facts is correct
-- 0.00 = Incorrect, irrelevant, contains no expected facts, or is a "not found" fallback when facts exist
+Retrieved evidence:
+${retrievedEvidence || "No evidence was retrieved."}
 
-Choose the score that best matches the overall completeness and accuracy of the answer.
-Do not default to 0.50 just because the answer is partially correct. Use 0.75 for minor omissions,
-0.50 for important missing facts, and 0.25 when only a small portion is correct.
+Return scores from 0 to 1:
+- score: expected-key-fact coverage and correctness.
+- groundedness: fraction of material answer claims supported by retrieved evidence.
+- hallucinationRate: fraction of material claims unsupported or contradicted by evidence.
+- factualConsistency: whether the answer avoids conflicts with retrieved evidence.
+- answerRelevance: how directly the answer addresses the question.
 
-Respond with ONLY this JSON, nothing else:
-{"score": 0.0, "reasoning": "one sentence explaining the score"}`;
+For score, 1 is complete and accurate, 0.75 has only minor omissions, 0.5 misses important facts, 0.25 covers little, and 0 is incorrect or irrelevant.
+Every score must be a JSON number from 0 to 1. Include all five score fields and a concise reasoning string of at most 30 words.
+Return only this JSON object:
+{"score":0,"groundedness":0,"hallucinationRate":0,"factualConsistency":0,"answerRelevance":0,"reasoning":"brief explanation"}`;
 
   try {
     const raw = await generateTextFAQs(
-      "You outout only valid JSON, nothing else",
+      "Return only valid JSON. No markdown or explanation outside the JSON.",
       judgePrompt,
-      { jsonMode: true },
+      { jsonMode: true, maxTokens: 600, temperature: 0 },
     );
 
     return parseJudgeResponse(raw);
   } catch (error) {
-    console.error("Judge scoring failed:", error.message);
+    console.error("Evaluation judge failed:", error.message);
     return {
       score: null,
-      reasoning: "Judge parsing failed — treated as failing score",
+      groundedness: null,
+      hallucinationRate: null,
+      factualConsistency: null,
+      answerRelevance: null,
+      reasoning: `Judge scoring failed: ${error.message}`,
     };
   }
 }
@@ -259,6 +347,19 @@ export async function getEvalRuns(workspaceId) {
       confidentRate: true,
       avgLatencyMs: true,
       p95LatencyMs: true,
+      avgPrecisionAtK: true,
+      avgRecallAtK: true,
+      avgF1AtK: true,
+      avgNdcgAtK: true,
+      avgBleu: true,
+      avgRougeL: true,
+      avgMeteor: true,
+      avgBertScore: true,
+      avgPerplexity: true,
+      avgGroundedness: true,
+      avgHallucinationRate: true,
+      avgFactualConsistency: true,
+      avgAnswerRelevance: true,
       createdAt: true,
     },
     orderBy: { createdAt: "desc" },
@@ -279,6 +380,11 @@ export async function getEvalRunDetail(runId,workspaceId){
 function average(arr) {
   if (arr.length === 0) return 0
   return arr.reduce((a, b) => a + b, 0) / arr.length
+}
+
+function averageNullable(values) {
+  const available = values.filter(Number.isFinite);
+  return available.length ? average(available) : null;
 }
 
 function percentile(arr, p) {
@@ -336,21 +442,53 @@ export function parseJudgeResponse(raw) {
   }
 
   const parsed = JSON.parse(text.slice(objectStart, objectEnd + 1));
-  const score =
-    typeof parsed.score === "number"
-      ? parsed.score
-      : typeof parsed.score === "string" && parsed.score.trim() !== ""
-        ? Number(parsed.score)
-        : Number.NaN;
   const reasoning =
     typeof parsed.reasoning === "string" ? parsed.reasoning.trim() : "";
+  const metricNames = [
+    "score",
+    "groundedness",
+    "hallucinationRate",
+    "factualConsistency",
+    "answerRelevance",
+  ];
+  const scores = {};
+  const invalidMetrics = [];
+
+  for (const name of metricNames) {
+    try {
+      scores[name] = parseUnitScore(parsed[name], name);
+    } catch {
+      scores[name] = null;
+      invalidMetrics.push(name);
+    }
+  }
+
+  const scoreCount = metricNames.filter((name) => scores[name] !== null).length;
+  const resultReasoning =
+    reasoning ||
+    (scoreCount > 0
+      ? "Judge returned scores without reasoning."
+      : "Judge returned no valid scores.");
+  const validationNote = invalidMetrics.length
+    ? `Invalid or missing judge score(s): ${invalidMetrics.join(", ")}.`
+    : "";
+
+  return {
+    ...scores,
+    reasoning: [resultReasoning, validationNote].filter(Boolean).join(" "),
+  };
+}
+
+function parseUnitScore(value, name) {
+  const score =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim() !== ""
+        ? Number(value)
+        : Number.NaN;
 
   if (!Number.isFinite(score) || score < 0 || score > 1) {
-    throw new Error("Judge response score must be a number from 0 to 1");
+    throw new Error(`Judge response ${name} must be a number from 0 to 1`);
   }
-  if (!reasoning) {
-    throw new Error("Judge response is missing reasoning");
-  }
-
-  return { score, reasoning };
+  return score;
 }
