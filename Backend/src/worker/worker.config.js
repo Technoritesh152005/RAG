@@ -6,7 +6,7 @@ import { updateSourceStatus } from "../modules/sources/source.service.js";
 import { crawlSource } from "../modules/crawler/crawler.service.js";
 import { startIngestionForYoutube } from "../modules/youtube/youtube.service.js";
 import prisma from "../lib/prisma.js";
-import { deleteWorkspaceCache } from "../modules/cache/semantic-cache.service.js";
+import { invalidateWorkspaceCache } from "../modules/cache/cache-invalidation.service.js";
 import { ingestPdfSource } from "../modules/pdf/pdf.service.js";
 import "./source-cleanup.worker.js";
 
@@ -143,7 +143,7 @@ const worker = new Worker(
         },
       );
 
-      await deleteWorkspaceCache(workspaceId);
+      await invalidateWorkspaceCache(workspaceId);
       await updateSourceStatus(sourceId, "DONE", {
         pageCount,
         chunkCount,
@@ -160,6 +160,13 @@ const worker = new Worker(
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`Ingestion failed for source ${sourceId}:`, error);
+
+      await invalidateWorkspaceCache(workspaceId).catch((cacheError) => {
+        console.error(
+          `Could not invalidate caches after failed ingestion for ${sourceId}:`,
+          cacheError.message,
+        );
+      });
 
       await updateSourceStatus(sourceId, "FAILED", { error: message }).catch(
         (statusError) => {

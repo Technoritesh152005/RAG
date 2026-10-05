@@ -8,7 +8,7 @@ import {
 import z from "zod";
 import { authenticateMiddleware } from "../auth/auth_middleware.js";
 import { workspaceStats } from "./workspace_service.js";
-import { deleteWorkspaceCache } from "../cache/semantic-cache.service.js";
+import { invalidateWorkspaceCache } from "../cache/cache-invalidation.service.js";
 // zod is a validation library
 
 const createSchema = z.object({
@@ -81,7 +81,7 @@ export async function registerWorkspaceRoute(fastify) {
         return reply.status(404).send({ error: "Workspace Not Found" });
       }
 
-      await deleteWorkspaceCache(request.params.id);
+      await invalidateWorkspaceCache(request.params.id);
       return reply.send({ message: "Workspace cache deleted" });
     } catch (error) {
       return reply.status(500).send({ error: error.message });

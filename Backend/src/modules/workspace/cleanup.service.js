@@ -2,7 +2,7 @@ import {deleteVectors,deleteWorkspaceVectors} from '../vector-store/pinecone.ser
 import {deleteWorkspaceChunks, deleteSourceChunks} from '../vector-store/fullTextSearch.service.js'
 import {deleteFAQs} from '../chat/faq.service.js'
 import {deleteWorkspaceHashes} from '../Embeeding/hashChunk.service.js'
-import {deleteWorkspaceCache} from '../cache/semantic-cache.service.js'
+import { invalidateWorkspaceCache } from '../cache/cache-invalidation.service.js'
 import prisma from '../../lib/prisma.js'
 import {deletePdf} from '../../lib/supabase.storage.js'
 
@@ -17,7 +17,7 @@ export async function cleanupWorkspace(workspaceId){
         deleteWorkspaceVectors(workspaceId),
         deleteFAQs(workspaceId),
         deleteWorkspaceHashes(workspaceId),
-        deleteWorkspaceCache(workspaceId)
+        invalidateWorkspaceCache(workspaceId)
     ])
 
      console.log(`Workspace ${workspaceId} fully cleaned up`)
@@ -32,7 +32,7 @@ export async function cleanupSource(sourceId, workspaceId){
     await Promise.all([
         deleteVectors(sourceId, workspaceId),
         deleteSourceChunks(sourceId),
-        deleteWorkspaceCache(workspaceId),
+        invalidateWorkspaceCache(workspaceId),
          source?.sourceType === 'PDF' && source.storagePath
         ? deletePdf(source.storagePath)
         : Promise.resolve()

@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import redis from "../../lib/redis.js";
+import {encodeVector, decodeVector, cosineSimilarity} from './vector-cache-utils.js'
 
 const CACHE_TTL = 60 * 60 * 24;
 const CACHE_TTL_SECONDS = CACHE_TTL;
@@ -9,30 +10,6 @@ const SIMILARITY_THRESHOLD = 0.9;
 const MAX_ENTRIES_PER_WORKSPACE = 100;
 //only 100 entries can be cached per workspace
 
-//as redis cant store js object of vector in redis so u convert in float32Array -> raw Bytes -> Base64 string means in the form of string. so when u get means afer encoding u need to decode also
-
-function decodeVectors(base64) {
-  const buffer = Buffer.from(base64, "base64");
-  return new Float32Array(buffer.buffer, buffer.byteOffset, buffer.length / 4);
-}
-
-function encodeVectors(embedding) {
-  const float32 = new Float32Array(embedding);
-  return Buffer.from(float32.buffer).toString("base64");
-}
-
-function cosineSimilarity(a, b) {
-  let dot = 0,
-    normA = 0,
-    normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  const denom = Math.sqrt(normA) * Math.sqrt(normB);
-  return denom === 0 ? 0 : dot / denom;
-}
 //every key has a workspaceId which dont caue cross workspace hits
 const vecKey = (workspaceId) => `semantic-cache:vec:${workspaceId}`;
 const dataKey = (workspaceId) => `semantic-cache:data:${workspaceId}`;
@@ -58,7 +35,7 @@ export async function lookUpCache(questionEmbedding, workspaceId) {
     let bestIds = null;
     let bestScore = 0;
     for (const entryId of entryIds) {
-      const cachedVector = decodeVectors(cacheVectors[entryId]);
+      const cachedVector = decodeVector(cacheVectors[entryId]);
       const similarity = cosineSimilarity(questionEmbedding, cachedVector);
 
       if (similarity > bestScore) {
@@ -107,10 +84,9 @@ export async function lookUpCache(questionEmbedding, workspaceId) {
       contradiction: entry.contradictions,
       originalQuestion: entry.question,
     };
-  } catch (Error) {
-    console.error("Cache lookup error:", err.message);
+  } catch (error) {
+    console.error("Cache lookup error:", error.message);
     return { hit: false };
-    throw Error;
   }
 }
 
@@ -142,7 +118,7 @@ export async function storeInCache({
     pipeline.hset(
       vecKey(workspaceId),
       entryId,
-      encodeVectors(questionEmbedding),
+      encodeVector(questionEmbedding),
     );
     pipeline.hset(dataKey(workspaceId), entryId, payload);
     pipeline.zadd(lruKey(workspaceId), now, entryId);
@@ -181,15 +157,6 @@ async function deleteCacheEntryIfNeeded(workspaceId){
 
 //when user does reindexing means docs is changes delete all the cache of that old docs
 
-export async function deleteWorkspaceCache(workspaceId){
-
- try {
-       
-       await redis.del(vecKey(workspaceId))
-       await redis.del(dataKey(workspaceId))
-       await redis.del(lruKey(workspaceId)) 
-       console.log(`Cache invalidated for workspace ${workspaceId}`)
- } catch (error) {
-      console.error('Cache invalidation error:', error.message)
- }
+export async function clearRetrievalCache(workspaceId) {
+  await redis.del(vecKey(workspaceId), dataKey(workspaceId), lruKey(workspaceId))
 }

@@ -1,6 +1,10 @@
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
 import { getSocket } from "../../realtime/socket";
 import { useSocketConnected } from "../../realtime/WorkspaceSocketProvider";
+import "highlight.js/styles/github-dark.css";
 
 function normalizeHistoryPayload(payload) {
   if (Array.isArray(payload?.messages)) {
@@ -428,17 +432,27 @@ export default function ChatPanel({ workspaceId, workspaceName = "", externalQue
             </div>
 
             <div className="bubble-content">
-              <p>
-                {message.content || (message.streaming ? "Searching your documentation" : "")}
-                {message.streaming && message.content ? (
-                  <span className="stream-cursor" aria-hidden="true" />
-                ) : null}
-                {message.streaming && !message.content && (
-                  <span className="generation-dots" aria-label="In progress">
-                    <i /><i /><i />
-                  </span>
-                )}
-              </p>
+              {message.role === "ASSISTANT" && message.content ? (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeHighlight]}
+                >
+                  {message.content}
+                </ReactMarkdown>
+              ) : (
+                <p>
+                  {message.content ||
+                    (message.streaming ? "Searching your documentation" : "")}
+                </p>
+              )}
+              {message.streaming && message.content && (
+                <span className="stream-cursor" aria-hidden="true" />
+              )}
+              {message.streaming && !message.content && (
+                <span className="generation-dots" aria-label="In progress">
+                  <i /><i /><i />
+                </span>
+              )}
             </div>
 
             {message.cacheSimilarity != null && (
