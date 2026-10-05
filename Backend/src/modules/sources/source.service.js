@@ -2,7 +2,7 @@
 // here after creating workspace u trgger the job in queue
 import prisma from "../../lib/prisma.js";
 import { addIngestionQueue, addSourceCleanupQueue } from "../jobs/queue.js";
-import { deleteWorkspaceCache } from "../cache/semantic-cache.service.js";
+import { invalidateWorkspaceCache } from "../cache/cache-invalidation.service.js";
 import { detectSourceTypes, extractVideoUrl } from "./url-detector.service.js";
 export function validateSourceUrl(sourceUrl) {
   let parsed;
@@ -97,6 +97,7 @@ export async function deleteSource(sourceId, userId) {
   });
   if (!source) throw new Error("Source not found");
 
+  await invalidateWorkspaceCache(source.workspaceId);
   await addSourceCleanupQueue({ sourceId, workspaceId: source.workspaceId });
 
   return prisma.source.delete({ where: { id: sourceId } });
@@ -112,7 +113,7 @@ export async function reIndexSource(sourceId, userId) {
   });
   if (!source) throw new Error("No Source found for re-indexing");
 
-  await deleteWorkspaceCache(source.workspaceId);
+  await invalidateWorkspaceCache(source.workspaceId);
 
   const updatedSource = await prisma.source.updateMany({
     where: { id: sourceId },

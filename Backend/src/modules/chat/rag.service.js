@@ -6,6 +6,16 @@ import { logUsage, estimateTokens } from "../analytics/usage.service.js";
 import { embedTexts } from "../Embeeding/embeeding.service.config.js";
 import { lookUpCache, storeInCache } from "../cache/semantic-cache.service.js";
 import { getSourceComparisonKey } from "../sources/url-detector.service.js";
+import {
+  lookupEmbeddingCache,
+  storeEmbeddingCache,
+} from "../cache/embedding-cache.service.js";
+import {
+  lookupContradictionCache,
+  storeContradictionCache,
+} from "../cache/contradiction-cache.service.js";
+import { sha256 } from "../cache/vector-cache-utils.js";
+
 export async function runRAGPipeline({
   question,
   workspaceId,
@@ -30,29 +40,66 @@ export async function runRAGPipeline({
     distinctSourceCount: 0,
     contradictionDetectionSkipped: null,
     contradictionFound: false,
+    embeddingCacheHit: false,
+    semanticCacheHit: false,
+    contradictionCacheHit: false,
   };
 
+  let questionEmbedding = null;
   try {
-  const startTime = Date.now();
-  console.log(`RAG pipeline started for: ${question}`);
+    const startTime = Date.now();
+    console.log(`RAG pipeline started for: ${question}`);
 
-  const [questionEmbedding] = await embedTexts([question]);
+    if (!skipCache) {
+      try {
+        const cachedEmbedding = await lookupEmbeddingCache(
+          question,
+          workspaceId,
+        );
+        if (isEmbedding(cachedEmbedding)) {
+          questionEmbedding = Array.from(cachedEmbedding);
+          metrics.embeddingCacheHit = true;
+        }
+      } catch (error) {
+        console.error("Embedding cache lookup failed:", error.message);
+      }
+    }
+
+    if (!questionEmbedding) {
+      [questionEmbedding] = await embedTexts([question]);
+      if (!skipCache) {
+        try {
+          await storeEmbeddingCache(question, workspaceId, questionEmbedding);
+        } catch (error) {
+          console.error("Embedding cache store failed:", error.message);
+        }
+      }
+    }
 
   //semantic caching lookup=>u check whether for this question already we generated answer for it or not?
   if (!skipCache) {
-    const cached = await lookUpCache(questionEmbedding, workspaceId);
-    if (cached.hit) {
+    let cached;
+    try {
+      cached = await lookUpCache(questionEmbedding, workspaceId);
+    } catch (error) {
+      console.error("Semantic answer cache lookup failed:", error.message);
+    }
+    if (cached?.hit && typeof cached.answer === "string") {
+      metrics.semanticCacheHit = true;
       metrics.retrievalMs = 0;
       metrics.contradictionDetectionMs = 0;
       metrics.answerGenerationMs = 0;
       metrics.generationDurationMs = 0;
       metrics.outputTokens = estimateTokens(cached.answer);
-      metrics.distinctSourceCount = countDistinctSources(cached.citations ?? []);
+      const cachedCitations = Array.isArray(cached.citations)
+        ? cached.citations
+        : [];
+      metrics.distinctSourceCount = countDistinctSources(cachedCitations);
       metrics.contradictionDetectionSkipped = true;
       metrics.contradictionFound = Boolean(cached.contradiction);
 
       onMetadata({
-        citations: cached.citations,
+        citations: cachedCitations,
         hasContradiction: Boolean(cached.contradiction),
         contradictions: cached.contradiction ? [cached.contradiction] : [],
         confident: true,
@@ -152,17 +199,54 @@ export async function runRAGPipeline({
   metrics.contradictionDetectionSkipped = metrics.distinctSourceCount < 2;
   let contradiction = null;
   if (!metrics.contradictionDetectionSkipped) {
-    try {
-      contradiction = await detectContradiction(question, results);
-    } finally {
-      metrics.contradictionDetectionMs = Date.now() - contradictionStart;
+    let contradictionCached = false;
+    const questionHash = sha256(question.trim().toLowerCase());
+    // Contradiction relevance depends on the question, not just the retrieved chunks.
+    const contradictionCacheResults = results.map((result) => ({
+      ...result,
+      id: `${result.id}:${questionHash}`,
+    }));
+
+    if (!skipCache) {
+      try {
+        const cached = await lookupContradictionCache(
+          contradictionCacheResults,
+          workspaceId,
+        );
+        if (cached?.hit && isContradictionResult(cached.contradiction)) {
+          contradiction = cached.contradiction;
+          contradictionCached = true;
+          metrics.contradictionCacheHit = true;
+          metrics.contradictionDetectionMs = 0;
+        }
+      } catch (error) {
+        console.error("Contradiction cache lookup failed:", error.message);
+      }
+    }
+
+    if (!contradictionCached) {
+      try {
+        const detection = await detectContradiction(question, results);
+        if (detection.checked) {
+          contradiction = detection.contradiction;
+          if (!skipCache) {
+            await storeContradictionCache(
+              contradictionCacheResults,
+              workspaceId,
+              contradiction,
+            );
+          }
+        }
+      } finally {
+        metrics.contradictionDetectionMs = Date.now() - contradictionStart;
+      }
     }
   } else {
     metrics.contradictionDetectionMs = 0;
   }
   metrics.contradictionFound = Boolean(contradiction);
   console.log(
-    `[Latency][RAG] contradictionDetectionMs=${Date.now() - contradictionStart}`,
+    `[Latency][RAG] contradictionDetectionMs=${metrics.contradictionDetectionMs}`,
   );
 
   if (contradiction) {
@@ -276,10 +360,40 @@ export async function runRAGPipeline({
   }
 }
 
+
 function countDistinctSources(results) {
   return new Set(
     results.map((result) => getSourceComparisonKey(result.pageUrl)),
   ).size;
+}
+
+function isEmbedding(value) {
+  return (
+    (Array.isArray(value) || value instanceof Float32Array) &&
+    value.length > 0 &&
+    Array.from(value).every(Number.isFinite)
+  );
+}
+
+function isContradictionResult(value) {
+  if (value === null) return true;
+  if (
+    !value ||
+    typeof value.topic !== "string" ||
+    !value.topic.trim() ||
+    !value.sideA ||
+    !value.sideB
+  ) {
+    return false;
+  }
+
+  return [value.sideA, value.sideB].every(
+    (side) =>
+      typeof side.claim === "string" &&
+      typeof side.source === "string" &&
+      (side.version === null || typeof side.version === "string") &&
+      typeof side.deprecated === "boolean",
+  );
 }
 
 function elapsedMs(start) {
@@ -315,7 +429,7 @@ async function detectContradiction(question, results) {
     results.map((result) => getSourceComparisonKey(result.pageUrl)),
   );
   if (uniqueSources.size < 2) {
-    return null;
+    return { checked: true, contradiction: null };
   }
 
   const contextForCheck = results
@@ -412,43 +526,52 @@ Your job is only to accurately report both conflicting sides
 and their explicitly stated version/deprecation context.
     `;
 
-  let parsed;
   try {
     const raw = await generateTextFAQs(
-      "Return only valid JSON. No markdown. No explanation.",
+      "Return only valid JSON matching the requested schema. No markdown or explanation.",
       detectPrompt,
+      { jsonMode: true, maxTokens: 600, temperature: 0 },
     );
 
-    parsed = JSON.parse(
+    const parsed = JSON.parse(
       raw
         .trim()
         .replace(/^```json\s*/i, "")
         .replace(/^```\s*/i, "")
         .replace(/\s*```$/i, ""),
     );
+
+    if (parsed.hasContradiction === false) {
+      return { checked: true, contradiction: null };
+    }
+    if (parsed.hasContradiction !== true) {
+      throw new Error("Response is missing hasContradiction boolean");
+    }
+
+    const contradiction = {
+      topic: parsed.topic,
+      sideA: {
+        claim: parsed.sideA?.claim,
+        source: parsed.sideA?.source,
+        version: parsed.sideA?.version ?? null,
+        deprecated: parsed.sideA?.deprecated,
+      },
+      sideB: {
+        claim: parsed.sideB?.claim,
+        source: parsed.sideB?.source,
+        version: parsed.sideB?.version ?? null,
+        deprecated: parsed.sideB?.deprecated,
+      },
+    };
+    if (!isContradictionResult(contradiction)) {
+      throw new Error("Response does not match the contradiction schema");
+    }
+
+    return { checked: true, contradiction };
   } catch (error) {
     console.error("Contradiction parsing Failed.", error.message);
-    return null;
+    return { checked: false, contradiction: null };
   }
-
-  if (!parsed.hasContradiction) return null;
-
-  //contradiction found. send the given message of disagremment
-  return {
-    topic: parsed.topic,
-    sideA: {
-      claim: parsed.sideA.claim,
-      source: parsed.sideA.source,
-      version: parsed.sideA.version ?? null,
-      deprecated: parsed.sideA.deprecated === true,
-    },
-    sideB: {
-      claim: parsed.sideB.claim,
-      source: parsed.sideB.source,
-      version: parsed.sideB.version ?? null,
-      deprecated: parsed.sideB.deprecated === true,
-    },
-  };
 }
 
 //Prompt Builder
