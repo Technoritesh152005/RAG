@@ -11,13 +11,11 @@ DocuFlux indexes documentation websites, PDFs, and YouTube videos into isolated 
 
 ## Screenshots
 
-The repository includes one workspace chat screenshot. The landing page and evaluation screenshots below are placeholders; add those image files before relying on the links.
+The repository includes screenshots of the landing page and an active workspace chat.
 
-![Workspace chat with sources and citations](./Frontend/public/ss.png)
-
-![Landing page screenshot to be added](./docs/images/landing-page.png)
-
-![Evaluation dashboard screenshot to be added](./docs/images/evaluation-dashboard.png)
+| Landing page | Workspace chat |
+|---|---|
+| ![DocuFlux landing page](./Frontend/public/Screenshot%202026-10-05%20184320.png) | ![DocuFlux workspace chat with rendered answer and citations](./Frontend/public/image.png) |
 
 ## Key features
 
@@ -112,18 +110,28 @@ The cache key includes both the question and the retrieved chunk set, scoped to 
 
 | Category | Technology | Purpose |
 |---|---|---|
-| Frontend | React 19, Vite | Workspace UI, chat, source management, and evaluation screens |
-| Backend | Node.js, Fastify | HTTP API and application services |
-| Authentication | Supabase Auth | Email/password and Google OAuth sign-in; backend access-token verification |
-| Database | PostgreSQL, Prisma | Workspaces, sources, messages, chunks, usage, and evaluation records |
-| Vector search | Pinecone | Workspace-namespaced vector storage and similarity search |
-| Keyword search | PostgreSQL full-text search | Text matching and ranking over stored chunks |
-| Cache and queue | Redis, ioredis, BullMQ | Cache entries, ingestion queues, and source-status Pub/Sub |
-| LLM | Groq API | Streaming answers, FAQ generation, and contradiction checks |
-| Embeddings | Hugging Face Transformers.js | Local `Xenova/all-MiniLM-L6-v2` embeddings |
-| Web ingestion | Crawlee, Mozilla Readability | Same-site crawling and readable page extraction |
-| PDF storage and parsing | Supabase Storage, PDF.js | Signed PDF uploads, storage, and text extraction |
-| YouTube ingestion | `youtube-transcript`, `@distube/ytdl-core`, FFmpeg | Transcript ingestion with an audio transcription fallback |
+| Frontend framework and build | React 19, Vite | Single-page application and frontend development/build |
+| Frontend data and state | TanStack Query, Zustand | Server-state fetching/caching and client-side workspace state |
+| Frontend networking and realtime | Axios, Socket.IO Client | HTTP API requests and streaming chat/source-status updates |
+| Frontend UI | Framer Motion, Lucide React, Recharts | Motion, icons, and analytics charts |
+| Frontend Markdown | `react-markdown`, `remark-gfm`, `rehype-highlight`, `highlight.js` | Render assistant Markdown, GitHub-flavored Markdown, and highlighted code |
+| Frontend styling | CSS | Application and component styling |
+| Backend runtime and language | Node.js, JavaScript ES modules | Run the API and background workers |
+| HTTP and realtime server | Fastify, `@fastify/cors`, `@fastify/rate-limit`, Socket.IO | HTTP API, cross-origin configuration, rate limits, and realtime events |
+| Request validation and configuration | Zod, dotenv | Validate request data and load environment variables |
+| Authentication and object storage | Supabase Auth, Supabase Storage, `@supabase/supabase-js` | Authenticate users and store PDF uploads |
+| Relational database and ORM | PostgreSQL, Prisma | Store workspaces, sources, messages, chunks, usage, and evaluation data |
+| Vector database | Pinecone | Store and search workspace-namespaced document embeddings |
+| Keyword retrieval | PostgreSQL full-text search | Match and rank indexed chunk text |
+| Cache, queue, and worker transport | Redis, ioredis, BullMQ | Cache data, process background jobs, and publish source progress |
+| LLM | Groq API (`groq-sdk`) | Stream answers, generate FAQs, and check retrieved content for contradictions |
+| Embeddings | Hugging Face Transformers.js, `Xenova/all-MiniLM-L6-v2` | Generate normalized 384-dimensional embeddings locally |
+| Web crawling and extraction | Crawlee, CheerioCrawler, Mozilla Readability, jsdom | Crawl same-site pages and extract readable content |
+| Chunking | LangChain Text Splitters | Split extracted documentation into parent and child chunks |
+| PDF processing | PDF.js (`pdfjs-dist`) | Extract PDF page content for indexing |
+| YouTube processing | `youtube-transcript`, `@distube/ytdl-core`, `fluent-ffmpeg`, `ffmpeg-static` | Read captions or download/transcribe audio when captions are unavailable |
+| Evaluation utilities | `natural` | Porter stemming used by the METEOR-style evaluation metric |
+| Local infrastructure | Docker Compose, Redis 7 | Run Redis locally; PostgreSQL and external providers are configured separately |
 
 ## Project structure
 
