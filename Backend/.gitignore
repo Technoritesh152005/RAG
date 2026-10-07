@@ -4,3 +4,4 @@ storage/
 .env
 
 /src/generated/prisma
+scripts
