@@ -1,4 +1,4 @@
-FROM node:20-slim AS base
+FROM node:22-slim AS base
 
 # ffmpeg needed for YouTube audio fallback transcription (Phase 2c),
 # which fluent-ffmpeg + ffmpeg-static expect to find or bundle
