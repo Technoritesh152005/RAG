@@ -12,7 +12,7 @@ services:
       timeout: 3s
       retries: 5
 
-backend-api:
+  backend-api:
     build:
       context: ./Backend
       dockerfile: Dockerfile
@@ -23,7 +23,7 @@ backend-api:
     env_file:
       - ./Backend/.env
     environment:
-      - REDIS_URL=redis://redis:6379   # service name, not localhost — Compose's internal DNS
+      - REDIS_URL=redis://redis:6379
     depends_on:
       redis:
         condition: service_healthy
@@ -34,8 +34,7 @@ backend-api:
       retries: 3
       start_period: 10s
 
-
-backend-worker:
+  backend-worker:
     build:
       context: ./Backend
       dockerfile: Dockerfile
@@ -48,8 +47,6 @@ backend-worker:
     depends_on:
       redis:
         condition: service_healthy
-    # no ports exposed — worker has no HTTP server, it only
-    # consumes jobs from the BullMQ queue
 
 volumes:
   redis_data:
