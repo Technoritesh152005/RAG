@@ -39,7 +39,7 @@ services:
       context: ./Backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    command: ["node", "src/worker.js"]
+    command: ["node", "src/worker/worker.config.js"]
     env_file:
       - ./Backend/.env
     environment:
