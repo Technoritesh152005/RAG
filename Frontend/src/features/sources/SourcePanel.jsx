@@ -266,17 +266,18 @@ export default function SourcePanel({ workspaceId }) {
       : null);
 
   const isYoutubeWalkthrough = walkthroughSource?.sourceType === "YOUTUBE";
+  const isYoutubeTranscriptMissing =
+    isYoutubeWalkthrough &&
+    walkthroughSource.error?.startsWith("No captions or transcript were found");
   const youtubeStageMessages = {
     fetching_metadata: "Loading video details",
     fetching_transcript: "Fetching captions",
-    audio_download: "Downloading audio for transcription",
-    splitting_audio: "Preparing audio for transcription",
     chunking: "Grouping transcript by video timestamps",
   };
   const indexingSteps = isYoutubeWalkthrough
     ? [
         { key: "PENDING", title: "Queued", detail: "Waiting for a video indexer" },
-        { key: "SCRAPING", title: "Reading video", detail: "Fetching captions or preparing audio transcription" },
+        { key: "SCRAPING", title: "Reading video", detail: "Fetching available captions" },
         { key: "CHUNKING", title: "Preparing transcript", detail: "Grouping passages by video timestamps" },
         { key: "EMBEDDING", title: "Building search", detail: "Making transcript passages searchable" },
         { key: "DONE", title: "Ready", detail: "Available in workspace chat" },
@@ -526,7 +527,9 @@ export default function SourcePanel({ workspaceId }) {
                   {walkthroughStatus === "DONE"
                     ? "Your source is ready!"
                     : walkthroughStatus === "FAILED"
-                      ? "Indexing needs attention"
+                      ? isYoutubeTranscriptMissing
+                        ? "No transcript found"
+                        : "Indexing needs attention"
                       : "Processing & Indexing Source..."}
                 </h3>
                 <p className="walkthrough-url" title={walkthroughSource.url}>
@@ -576,7 +579,7 @@ export default function SourcePanel({ workspaceId }) {
                 <>
                   {isYoutubeWalkthrough
                     ? youtubeStageMessages[walkthroughSource.stage] ??
-                      "Reading video details and transcript"
+                      "Reading video details and checking for captions"
                     : walkthroughSource.pageCount
                       ? `Reading pages · ${walkthroughSource.pageCount} found`
                       : "Opening the section and reading its pages"}
@@ -643,6 +646,9 @@ export default function SourcePanel({ workspaceId }) {
             const isFailed = source.status === "FAILED";
             const isYoutube = source.sourceType === "YOUTUBE";
             const isPdf = source.sourceType === "PDF";
+            const isYoutubeTranscriptMissing =
+              isYoutube &&
+              source.error?.startsWith("No captions or transcript were found");
 
             return (
               <div key={source.id} className="source-item-card">
@@ -679,7 +685,15 @@ export default function SourcePanel({ workspaceId }) {
                   <div className="source-meta-row">
                     <span className={`status-pill ${isDone ? "status-active" : isFailed ? "status-failed" : "status-grey"}`}>
                       <span className="status-dot" />
-                      <span>{isDone ? "Ready" : isFailed ? "Failed" : source.status}</span>
+                      <span>
+                        {isDone
+                          ? "Ready"
+                          : isYoutubeTranscriptMissing
+                            ? "No transcript"
+                            : isFailed
+                              ? "Failed"
+                              : source.status}
+                      </span>
                     </span>
 
                     <span className="meta-fact">

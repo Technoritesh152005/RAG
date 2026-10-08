@@ -1,8 +1,8 @@
 import { extractVideoUrl } from "../sources/url-detector.service.js";
 import { fetchTranscript, fetchVideoMetadata } from "./transcript.service.js";
 import { chunkTranscript } from "./youtube.chunker.js";
-import { transcribeAudioFallback } from "./audio-transcribe.service.js";
 import { logUsage } from "../analytics/usage.service.js";
+import { UnrecoverableError } from "bullmq";
 export async function startIngestionForYoutube({
   url,
   sourceId,
@@ -19,17 +19,11 @@ export async function startIngestionForYoutube({
   const { title } = await fetchVideoMetadata(videoId);
 
   if (onProgress) await onProgress({ stage: "fetching_transcript" });
-  let segments = await fetchTranscript(videoId);
-  let transcriptionMethod = segments ? "captions" : "whisper";
-
-  if (!segments) {
-    //taking a backup approach to transcribe the audio if no captions exist
-    segments = await transcribeAudioFallback(videoId, onProgress);
-  }
+  const segments = await fetchTranscript(videoId);
 
   if (!segments || segments.length === 0) {
-    throw new Error(
-      "No captions or audio transcription available for this video. Please try with a different video.",
+    throw new UnrecoverableError(
+      "No captions or transcript were found for this YouTube video. Please try a video with captions enabled.",
     );
   }
 
@@ -46,7 +40,6 @@ export async function startIngestionForYoutube({
     `YouTube ingestion: ${segments.length} caption segments → ${allChunks.length} chunks`,
   );
 
-  const audioSeconds = segments[segments.length - 1]?.end || 0;
   await logUsage({
     workspaceId,
     type: "INGESTION",
@@ -54,7 +47,7 @@ export async function startIngestionForYoutube({
     llmInputTokens: 0,
     llmOutputTokens: 0,
     latencyMs: null,
-    metadata: { sourceId, transcriptionMethod, audioSeconds, videoId },
+    metadata: { sourceId, videoId },
   });
 
   return {
@@ -62,6 +55,5 @@ export async function startIngestionForYoutube({
     videoId,
     title,
     segmentCount: segments.length,
-    transcriptionMethod,
   };
 }

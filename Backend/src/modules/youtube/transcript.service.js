@@ -18,7 +18,7 @@ export async function fetchTranscript(videoId){
 
         return segments;
     }catch(err){
-        console.error('Error fetching the transcription of the given video. Maybe no captions exist , Let us try other options',err)
+        console.error('Could not fetch YouTube captions or transcript', err)
         return null
     }
 }
