@@ -18,11 +18,9 @@ COPY . .
 
 RUN useradd --create-home appuser
 
-# Create writable Hugging Face cache
-RUN mkdir -p /home/appuser/.cache/huggingface \
-    && chown -R appuser:appuser /home/appuser/.cache
-
-ENV HF_HOME=/home/appuser/.cache/huggingface
+# Create writable Transformers.js cache
+RUN mkdir -p /app/node_modules/@huggingface/transformers/.cache \
+    && chown -R appuser:appuser /app/node_modules/@huggingface/transformers/.cache
 
 USER appuser
 
