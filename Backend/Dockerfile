@@ -18,9 +18,12 @@ COPY . .
 
 RUN useradd --create-home appuser
 
-# Create writable Transformers.js cache
+# Create writable runtime directories for Transformers.js and Crawlee
 RUN mkdir -p /app/node_modules/@huggingface/transformers/.cache \
-    && chown -R appuser:appuser /app/node_modules/@huggingface/transformers/.cache
+    /app/storage \
+    && chown -R appuser:appuser \
+      /app/node_modules/@huggingface/transformers/.cache \
+      /app/storage
 
 USER appuser
 
