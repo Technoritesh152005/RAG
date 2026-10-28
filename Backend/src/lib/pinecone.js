@@ -12,3 +12,4 @@ export  const getPineconeIndex =()=>{
 }
 
 export default pinecone
+int a = 10;
